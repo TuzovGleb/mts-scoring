@@ -119,7 +119,10 @@ function renderField(f) {
       if (cur.text === opt.value) o.selected = true;
       input.appendChild(o);
     }
-    input.addEventListener("change", (e) => setAnswer(f.id, { text: e.target.value }));
+    input.addEventListener("change", (e) => {
+      setAnswer(f.id, { text: e.target.value });
+      render(); // select может показать/скрыть зависимые поля (showIf)
+    });
   } else if (f.type === "textarea") {
     input = el("textarea", { id: f.id }, cur.text || "");
     input.addEventListener("input", (e) => setAnswer(f.id, { text: e.target.value }));
@@ -173,7 +176,8 @@ function renderBlockStep(block) {
   if (block.intro) card.appendChild(el("div", { class: "step-intro" }, block.intro));
   if (block.scale) card.appendChild(el("div", { class: "scale-note" }, block.scale));
 
-  for (const f of block.fields) card.appendChild(renderField(f));
+  const visible = block.fields.filter((f) => !f.showIf || f.showIf(state.answers));
+  for (const f of visible) card.appendChild(renderField(f));
 
   return card;
 }

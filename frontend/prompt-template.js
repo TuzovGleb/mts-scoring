@@ -30,9 +30,16 @@ function tagged(answers, id, fallback = "") {
   return tag ? `${t} (${tag})` : t;
 }
 
+// Эффективный тип бизнеса: если выбрано «Другое» — берём свободный ввод.
+function bizType(answers) {
+  const sel = val(answers, "biz_type", "односторонний");
+  if (sel === "custom") return val(answers, "biz_type_custom", "односторонний");
+  return sel;
+}
+
 function isMarketplace(answers) {
-  return val(answers, "biz_type").toLowerCase().includes("маркетплейс") &&
-    !val(answers, "biz_type").toLowerCase().includes("не маркетплейс");
+  const t = bizType(answers).toLowerCase();
+  return t.includes("маркетплейс") && !t.includes("не маркетплейс");
 }
 
 function expansion(answers) {
@@ -54,7 +61,7 @@ export function buildPrompt(answers) {
   const threshold = clean(val(answers, "threshold", "100"));
   const mp = isMarketplace(answers);
   const { exp, has: hasExp } = expansion(answers);
-  const bizType = val(answers, "biz_type", "односторонний");
+  const businessType = bizType(answers);
 
   // Продукт: одна фраза + боль, если заполнена.
   const productPhrase = val(answers, "q2", "{что делает — не заполнено}");
@@ -121,7 +128,7 @@ export function buildPrompt(answers) {
   lines.push("");
   lines.push("=== КОНТЕКСТ (вводные) ===");
   lines.push(`Продукт: ${product}`);
-  lines.push(`Тип бизнеса: ${bizType}.`);
+  lines.push(`Тип бизнеса: ${businessType}.`);
   lines.push(`Кто платит (ICP): ${val(answers, "q3", "{ICP не указан}")}.`);
   lines.push(`Заменяет: ${val(answers, "q4", "{альтернатива не указана}")}.`);
   lines.push(
