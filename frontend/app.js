@@ -1,10 +1,12 @@
-import { BLOCKS, TAGS, DEFAULTS, ALL_FIELDS, FACTORS } from "./questionnaire.js";
-import { buildPrompt, promptTitle } from "./prompt-template.js";
-import { computeScore } from "./scoring.js";
+import { unlock } from "./protected.js";
+
+// Ядро (схема опросника + генератор метапромта + скоринг) зашифровано:
+// загружается динамически после ввода пароля (см. init в конце файла).
+let BLOCKS, TAGS, DEFAULTS, buildPrompt, promptTitle, computeScore;
+let STEPS = [];
 
 const LS_KEY = "scoring-app:v1";
 const BACKEND_LS = "scoring-app:backend";
-const STEPS = [...BLOCKS, { id: "result", title: "Результат" }];
 
 // Провайдеры для рассылки (Фаза 2). name должен совпадать с бэкендом.
 const DISPATCH_MODELS = [
@@ -594,7 +596,18 @@ function resetAll() {
 }
 
 // ── Инициализация ──
-function init() {
+// Сначала пароль → расшифровка ядра → динамический import из blob-URL → запуск.
+async function init() {
+  const host = document.getElementById("app");
+  const code = await unlock("scoring-core", host);
+  const blobUrl = URL.createObjectURL(
+    new Blob([code], { type: "text/javascript" })
+  );
+  const core = await import(blobUrl);
+  URL.revokeObjectURL(blobUrl);
+  ({ BLOCKS, TAGS, DEFAULTS, buildPrompt, promptTitle, computeScore } = core);
+  STEPS = [...BLOCKS, { id: "result", title: "Результат" }];
+
   loadState();
   document.getElementById("btn-export").addEventListener("click", exportJson);
   document.getElementById("btn-reset").addEventListener("click", resetAll);

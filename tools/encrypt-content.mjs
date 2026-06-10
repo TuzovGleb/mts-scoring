@@ -37,9 +37,11 @@ async function deriveKey(pass, salt) {
 }
 
 await fs.mkdir(OUT, { recursive: true });
-const files = (await fs.readdir(SRC)).filter((f) => f.endsWith(".html"));
+const files = (await fs.readdir(SRC)).filter(
+  (f) => f.endsWith(".html") || f.endsWith(".js")
+);
 if (!files.length) {
-  console.error(`Нет .html в ${SRC}`);
+  console.error(`Нет .html/.js в ${SRC}`);
   process.exit(1);
 }
 
@@ -61,7 +63,7 @@ for (const file of files) {
     iv: b64(iv),
     data: b64(data),
   };
-  const outFile = path.join(OUT, file.replace(/\.html$/, ".enc.json"));
+  const outFile = path.join(OUT, file.replace(/\.(html|js)$/, ".enc.json"));
   await fs.writeFile(outFile, JSON.stringify(out), "utf8");
   console.log(`✓ ${file} → ${path.relative(process.cwd(), outFile)} (${out.data.length} b64 байт)`);
 }

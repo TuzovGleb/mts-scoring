@@ -1,4 +1,5 @@
-// Защищённые страницы: форма пароля → PBKDF2+AES-GCM (Web Crypto) → рендер HTML.
+// Защищённый контент: форма пароля → PBKDF2+AES-GCM (Web Crypto).
+// unlock(name, host) → Promise<plaintext> — универсальный гейт (документы и код).
 // Пароль кэшируется в sessionStorage — между страницами сайта в рамках вкладки.
 const SS_KEY = "hackteam:pass";
 
@@ -31,31 +32,42 @@ async function decrypt(blob, pass) {
   return new TextDecoder().decode(plain);
 }
 
-// Точка входа: initProtected("manifest") на странице manifest.html
-export async function initProtected(contentName) {
-  const host = document.getElementById("protected");
+// Универсальный гейт: рендерит форму пароля в host (если нужно),
+// резолвится расшифрованным текстом content/<name>.enc.json.
+export async function unlock(contentName, host) {
   const blob = await fetch(`content/${contentName}.enc.json`).then((r) => r.json());
 
   const cached = sessionStorage.getItem(SS_KEY);
   if (cached) {
     try {
-      renderArticle(host, await decrypt(blob, cached));
-      return;
+      return await decrypt(blob, cached);
     } catch {
       sessionStorage.removeItem(SS_KEY); // пароль сменился
     }
   }
-  renderForm(host, blob);
+  return new Promise((resolve) => renderForm(host, blob, resolve));
 }
 
-function renderForm(host, blob, error = false) {
+export function lockSession() {
+  sessionStorage.removeItem(SS_KEY);
+  location.reload();
+}
+
+// Страницы документов: unlock → рендер статьи.
+export async function initProtected(contentName) {
+  const host = document.getElementById("protected");
+  const html = await unlock(contentName, host);
+  renderArticle(host, html);
+}
+
+function renderForm(host, blob, resolve, error = false) {
   host.innerHTML = "";
   const card = document.createElement("div");
   card.className = "card lock-card";
   card.innerHTML = `
     <div class="lock-icon">🔒</div>
-    <h2>Документ под паролем</h2>
-    <p class="step-meta">Страница зашифрована. Введи пароль доступа — он один для всех документов.</p>
+    <h2>Доступ по паролю</h2>
+    <p class="step-meta">Содержимое зашифровано. Введи пароль — он один для всех разделов.</p>
     <form class="lock-form">
       <input type="password" placeholder="Пароль" autocomplete="current-password" autofocus />
       <button class="btn" type="submit">Открыть</button>
@@ -70,11 +82,11 @@ function renderForm(host, blob, error = false) {
     btn.disabled = true;
     btn.textContent = "Расшифровка…";
     try {
-      const html = await decrypt(blob, pass);
+      const text = await decrypt(blob, pass);
       sessionStorage.setItem(SS_KEY, pass);
-      renderArticle(host, html);
+      resolve(text);
     } catch {
-      renderForm(host, blob, true);
+      renderForm(host, blob, resolve, true);
     }
   });
 }
@@ -87,10 +99,7 @@ function renderArticle(host, html) {
   lockBtn.className = "btn btn--ghost btn--sm";
   lockBtn.type = "button";
   lockBtn.textContent = "🔒 Закрыть доступ";
-  lockBtn.addEventListener("click", () => {
-    sessionStorage.removeItem(SS_KEY);
-    location.reload();
-  });
+  lockBtn.addEventListener("click", lockSession);
   bar.appendChild(lockBtn);
 
   const article = document.createElement("article");
