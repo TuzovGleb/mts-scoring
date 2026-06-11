@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>Скоринг — MTS HackTeam</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar__inner">
+        <div class="brand">
+          <span class="brand__mark"></span>
+          <div>
+            <div class="brand__title">MTS HackTeam</div>
+            <div class="brand__sub">Скоринг: опросник V0 → deep-research метапромт</div>
+          </div>
+        </div>
+        <div class="toolbar">
+          <button id="btn-export" class="btn btn--ghost" type="button">Экспорт</button>
+          <button id="btn-import" class="btn btn--ghost" type="button">Импорт</button>
+          <button id="btn-reset" class="btn btn--ghost" type="button">Сбросить</button>
+          <input id="file-import" type="file" accept="application/json" hidden />
+        </div>
+      </div>
+      <div class="progress"><div id="progress-bar" class="progress__bar"></div></div>
+    </header>
+
+    <main id="app" class="app"></main>
+
+    <footer class="footer">
+      Данные хранятся только в этом браузере (localStorage). Содержимое опросника зашифровано.
+    </footer>
+
+    <script type="module">
+      import { renderNavbar } from "./nav.js";
+      renderNavbar("scoring");
+    </script>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

@@ -402,6 +402,81 @@ textarea:focus, input:focus, select:focus {
   .article th, .article td { padding: 6px; }
 }
 
+/* About (Суть подхода) */
+.article .hero { text-align: center; padding: 8px 0 4px; }
+.article .hero h1 { font-size: 28px; }
+.type-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 20px 0;
+}
+.type-card {
+  border-radius: 12px;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+}
+.type-card--t1 { background: #fef2f2; border-color: #fecaca; }
+.type-card--t2 { background: #f0fdf4; border-color: #bbf7d0; }
+.type-card__num {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 14px;
+  color: #fff;
+  margin-bottom: 8px;
+}
+.type-card--t1 .type-card__num { background: var(--red); }
+.type-card--t2 .type-card__num { background: var(--ok); }
+.type-card__title { font-weight: 700; font-size: 15.5px; margin-bottom: 6px; }
+.type-card p { margin: 0; font-size: 13.5px; }
+
+.crit-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.crit-col h3 { margin-top: 8px; }
+.crit-list { list-style: none; padding: 0; margin: 8px 0; }
+.crit-list li {
+  padding: 8px 12px;
+  border-left: 3px solid var(--red);
+  background: var(--bg);
+  border-radius: 0 8px 8px 0;
+  margin: 6px 0;
+  font-size: 13.5px;
+}
+.crit-note { text-align: center; font-size: 14px; margin-top: 14px; }
+
+.steps { display: grid; gap: 10px; margin: 14px 0; }
+.step-item {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.step-item__badge {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #fff;
+  font-weight: 800;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.step-item:last-child .step-item__badge { background: var(--red); }
+.step-item strong { font-size: 14px; }
+.step-item p { margin: 3px 0 0; font-size: 13px; color: #374151; }
+
+@media (max-width: 560px) {
+  .type-cards, .crit-cols { grid-template-columns: 1fr; }
+}
+
 .footer {
   max-width: var(--maxw);
   margin: 0 auto;

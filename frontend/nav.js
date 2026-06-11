@@ -2,10 +2,11 @@
 // renderNav("scoring" | "manifest" | "types" | "scales")
 export function renderNavbar(active) {
   const tabs = [
-    { id: "scoring", href: "index.html", label: "Скоринг" },
+    { id: "about", href: "index.html", label: "Суть" },
     { id: "manifest", href: "manifest.html", label: "Манифест" },
     { id: "types", href: "types.html", label: "Типы проектов" },
     { id: "scales", href: "scales.html", label: "Шкалы оценок" },
+    { id: "scoring", href: "scoring.html", label: "Скоринг" },
   ];
   const nav = document.createElement("nav");
   nav.className = "hub-nav";
