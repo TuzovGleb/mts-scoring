@@ -97,7 +97,14 @@ data/             ← локальные данные, пароль (data/ПАР
   РФ-ограничение: o3/o4-mini-deep-research требуют верификации OpenAI (недоступно) →
   используем gpt-5.1 (high) + Parallel как движок глубины. Инструкция — DEPLOY-NETLIFY.md.
 
-ПОЗЖЕ (этап D): синтез researches→один отчёт; авто-v1 из синтеза; общее хранилище
+- T12 синтез + PDF: `frontend/report.js` (buildSynthesisPrompt, mdToHtml — чистые,
+  тесты в tests/report.test.mjs); блок «Интегрированный синтез» в карточке —
+  «Собрать синтез» сводит готовые отчёты в один (gpt-5.1) через /api/start+check
+  (project.synthesis, механизм A), рендер mdToHtml; кнопка «Скачать PDF» — вся
+  карточка (описание, v0, синтез, отчёты, v1, шаги, решение) печатным видом
+  (buildCardHtml + PRINT_CSS, window.print → Сохранить как PDF). npm test 28/28.
+
+ПОЗЖЕ (этап D): авто-v1 из синтеза; общее хранилище
 (Netlify Blobs); прикрепление файлов; опц. провайдер OpenRouter (доступ к o3/Claude/Gemini
 без верификации OpenAI, RU-дружелюбная оплата).
 
