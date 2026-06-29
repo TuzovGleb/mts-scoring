@@ -3,8 +3,19 @@
 //  - buildSynthesisPrompt: промт для сведения отчётов моделей в один (gpt-5.1);
 //  - mdToHtml: минимальный markdown → HTML для красивого показа и печати в PDF.
 
-// Промт синтеза: сводит готовые deep-research отчёты в один структурированный.
-export function buildSynthesisPrompt(project) {
+// Факторы по умолчанию (совпадают с FACTORS ядра). Передаются явно из projects.js,
+// здесь — фолбэк, чтобы модуль оставался самодостаточным и тестируемым.
+export const DEFAULT_FACTORS = [
+  { id: "A", name: "Размер денег" },
+  { id: "B", name: "Срок до денег" },
+  { id: "C", name: "Юнит-экономика" },
+  { id: "D", name: "Защищаемость" },
+  { id: "E", name: "Реализуемость" },
+];
+
+// Промт синтеза: сводит готовые deep-research отчёты в один структурированный
+// + требует в конце машиночитаемую строку БАЛЛЫ (для авто-простановки v1).
+export function buildSynthesisPrompt(project, factors = DEFAULT_FACTORS) {
   const name = (project && project.name) || "проект";
   const desc = (project && project.desc) || "";
   const reports = ((project && project.researches) || []).filter(
@@ -30,12 +41,35 @@ export function buildSynthesisPrompt(project) {
     `## Риски и самое рискованное допущение`,
     `## Что проверить (гипотезы)`,
     `## Вывод и рекомендация`,
+    `## Оценка по факторам`,
+    `(по каждому фактору — балл 1–5 с короткой аргументацией)`,
+    ``,
+    `В САМОМ КОНЦЕ ответа добавь ОДНУ строку строго такого формата (для автоскоринга):`,
+    `БАЛЛЫ: ${factors.map((f) => `${f.id}=N`).join(" ")}`,
+    `где N — целое 1–5 по каждому фактору: ${factors
+      .map((f) => `${f.id} — ${f.name}`)
+      .join("; ")}.`,
     ``,
     `Пиши только markdown итогового отчёта, без преамбулы.`,
     ``,
     `=== ОТЧЁТЫ ИСТОЧНИКОВ ===`,
     parts || "(нет готовых отчётов)",
   ].join("\n");
+}
+
+// Парсит строку «БАЛЛЫ: A=4 B=3 …» из текста синтеза. Возвращает только валидные
+// факторы (целое 1–5). Ищем в пределах строки БАЛЛЫ, чтобы не цеплять числа из текста.
+export function parseScores(text, ids = DEFAULT_FACTORS.map((f) => f.id)) {
+  const out = {};
+  if (!text) return out;
+  const m = String(text).match(/БАЛЛЫ\s*:?[^\n]*/i);
+  const scope = m ? m[0] : "";
+  if (!scope) return out;
+  for (const id of ids) {
+    const mm = scope.match(new RegExp("\\b" + id + "\\s*[=:]\\s*([1-5])\\b"));
+    if (mm) out[id] = Number(mm[1]);
+  }
+  return out;
 }
 
 // Минимальный markdown → HTML: заголовки, списки, таблицы, ссылки, жирный/курсив,
