@@ -6,6 +6,7 @@
 import { renderNavbar } from "./nav.js";
 import { loadCore } from "./core-loader.js";
 import { store } from "./store.js";
+import { buildSynthesisPrompt, mdToHtml } from "./report.js";
 
 renderNavbar("projects");
 const host = document.getElementById("app");
@@ -22,11 +23,16 @@ const RESEARCH_MODELS = [
 const NETLIFY_URL_KEY = "hackteam:netlifyUrl";
 const POLL_MS = 10 * 60 * 1000; // автопроверка раз в ~10 мин, пока вкладка открыта
 let pollTimer = null;
+let synPollTimer = null;
 
 function stopPolling() {
   if (pollTimer) {
     clearInterval(pollTimer);
     pollTimer = null;
+  }
+  if (synPollTimer) {
+    clearInterval(synPollTimer);
+    synPollTimer = null;
   }
 }
 
@@ -439,17 +445,132 @@ async function checkResearch(p, paint, silent = false) {
 }
 
 // Блок «Интегрированный синтез» — заглушка (этап D, позже).
+// Блок «Интегрированный синтез» — сводит готовые отчёты моделей в один отчёт
+// (gpt-5.1). Механизм A: проверка при заходе + автопроверка + ручная кнопка.
 function renderSynthesisBlock(p) {
   const sec = eln("section", "card-block");
-  sec.appendChild(blockHead("Интегрированный синтез"));
-  sec.appendChild(
-    eln(
-      "div",
-      "step-intro stub",
-      "Сводный отчёт по ответам моделей появится позже — после сбора deep research."
-    )
-  );
+  sec.appendChild(blockHead("Интегрированный синтез", "сводный отчёт (gpt-5.1)"));
+  const body = eln("div");
+  const paint = () => {
+    const fresh = store.get(p.id) || p;
+    body.innerHTML = "";
+    body.appendChild(renderSynthesisBody(fresh, paint));
+    armSynPolling(fresh, paint);
+  };
+  sec.appendChild(body);
+  paint();
   return sec;
+}
+
+function renderSynthesisBody(p, paint) {
+  const wrap = eln("div");
+  const doneReports = (p.researches || []).filter((r) => r && r.status === "done" && r.text);
+  const syn = p.synthesis && typeof p.synthesis === "object" ? p.synthesis : null;
+  const running = syn && syn.status === "running";
+
+  const actions = eln("div", "result-actions");
+  const makeBtn = eln(
+    "button",
+    "btn btn--sm",
+    running ? "Синтез идёт…" : syn && syn.status === "done" ? "Пересобрать синтез" : "Собрать синтез"
+  );
+  makeBtn.type = "button";
+  makeBtn.disabled = running || doneReports.length === 0;
+  makeBtn.addEventListener("click", () => dispatchSynthesis(p, paint));
+  actions.appendChild(makeBtn);
+  if (syn && syn.providerId && running) {
+    const checkBtn = eln("button", "btn btn--sm btn--ghost", "Проверить синтез");
+    checkBtn.type = "button";
+    checkBtn.addEventListener("click", () => checkSynthesis(p, paint));
+    actions.appendChild(checkBtn);
+  }
+  wrap.appendChild(actions);
+
+  if (!doneReports.length) {
+    wrap.appendChild(
+      eln("div", "step-intro stub", "Сначала собери deep research (нужен хотя бы один готовый отчёт).")
+    );
+    return wrap;
+  }
+
+  if (!syn) {
+    wrap.appendChild(eln("div", "step-intro", "Нажми «Собрать синтез» — сведём отчёты в один."));
+  } else if (syn.status === "error") {
+    wrap.appendChild(eln("div", "score-flag", syn.error || "Ошибка синтеза"));
+  } else if (syn.status === "running") {
+    wrap.appendChild(eln("div", "step-intro", "Синтез готовится (gpt-5.1, high). Можно закрыть вкладку и вернуться."));
+  } else if (syn.status === "done") {
+    const doc = eln("div", "report-doc");
+    doc.innerHTML = mdToHtml(syn.text || "");
+    wrap.appendChild(doc);
+  }
+  return wrap;
+}
+
+function armSynPolling(p, paint) {
+  if (synPollTimer) {
+    clearInterval(synPollTimer);
+    synPollTimer = null;
+  }
+  if (!(p.synthesis && p.synthesis.status === "running")) return;
+  checkSynthesis(p, paint, true); // проверка при заходе
+  synPollTimer = setInterval(() => checkSynthesis(p, paint, true), POLL_MS);
+}
+
+async function dispatchSynthesis(p, paint) {
+  const url = netlifyUrl();
+  if (!url) {
+    window.alert("Сначала укажи URL Netlify-бэкенда (в блоке Deep research).");
+    return;
+  }
+  const prompt = buildSynthesisPrompt(store.get(p.id) || p);
+  try {
+    const res = await fetch(`${url.replace(/\/$/, "")}/api/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, models: ["openai"] }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    const job = (data.jobs || [])[0] || {};
+    store.update(p.id, {
+      synthesis: {
+        model: "openai",
+        providerId: job.providerId || null,
+        status: job.status || (job.error ? "error" : "running"),
+        text: "",
+        error: job.error || null,
+        mock: !!job.mock,
+      },
+    });
+  } catch (e) {
+    window.alert("Не удалось запустить синтез: " + (e && e.message ? e.message : e));
+  }
+  paint();
+}
+
+async function checkSynthesis(p, paint, silent = false) {
+  const url = netlifyUrl();
+  const syn = (store.get(p.id) || p).synthesis;
+  if (!url || !syn || !syn.providerId) {
+    if (!silent) window.alert("Нечего проверять.");
+    return;
+  }
+  try {
+    const res = await fetch(`${url.replace(/\/$/, "")}/api/check`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jobs: [{ model: syn.model || "openai", providerId: syn.providerId, status: syn.status }] }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    const job = (data.jobs || [])[0] || {};
+    store.update(p.id, { synthesis: { ...syn, ...job } });
+  } catch (e) {
+    if (!silent) window.alert("Не удалось проверить синтез: " + (e && e.message ? e.message : e));
+    return;
+  }
+  paint();
 }
 
 // ── Экспорт карточки одним .md ──
