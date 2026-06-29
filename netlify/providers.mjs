@@ -5,16 +5,18 @@
 // ── Parallel.ai (Task API) ──
 const PARALLEL_BASE = "https://api.parallel.ai/v1";
 const PARALLEL_PROCESSOR = process.env.PARALLEL_PROCESSOR || "ultra";
+// Приоритет — проектный ключ PARALLEL_API_MTS_KEY, иначе общий PARALLEL_API_KEY.
+const parallelKey = () => process.env.PARALLEL_API_MTS_KEY || process.env.PARALLEL_API_KEY;
 
 const parallel = {
   label: "Parallel.ai",
-  enabled: () => Boolean(process.env.PARALLEL_API_KEY),
+  enabled: () => Boolean(parallelKey()),
   async start(prompt) {
     const r = await fetch(`${PARALLEL_BASE}/tasks/runs`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": process.env.PARALLEL_API_KEY,
+        "x-api-key": parallelKey(),
       },
       body: JSON.stringify({
         input: prompt,
