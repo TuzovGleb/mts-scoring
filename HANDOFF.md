@@ -86,8 +86,20 @@ data/             ← локальные данные, пароль (data/ПАР
   вписать `PARALLEL_API_KEY`/`OPENAI_API_KEY`, проверить `<url>/api/start` (GET),
   вписать URL в блок «Deep research» на сайте, прогнать один реальный проект.
 
+ТАКЖЕ СДЕЛАНО:
+- T11 «Новый проект» как явное действие (оценка ≠ перезапись): `store.startNew()`
+  (+isBlank, тесты), на Скоринге кнопка «Сбросить»→«Новый проект» (создаёт/переиспользует
+  пустой проект, прошлый не трогает), на «Результате» строка-ссылка «Сохранено в проект…
+  → открыть карточку», «Новый проект» в Проектах ведёт сразу в Скоринг. npm test 22/22.
+- Боевой Netlify: ключи под кастомными именами OPENAI_API_MTS_KEY / PARALLEL_API_MTS_KEY
+  (код читает их с fallback на …_KEY); OPENAI_MODEL, PARALLEL_PROCESSOR, OPENAI_EFFORT.
+  gpt-5 → авто reasoning.effort=high + web_search; deep-research модели → web_search_preview.
+  РФ-ограничение: o3/o4-mini-deep-research требуют верификации OpenAI (недоступно) →
+  используем gpt-5.1 (high) + Parallel как движок глубины. Инструкция — DEPLOY-NETLIFY.md.
+
 ПОЗЖЕ (этап D): синтез researches→один отчёт; авто-v1 из синтеза; общее хранилище
-(Netlify Blobs); прикрепление файлов.
+(Netlify Blobs); прикрепление файлов; опц. провайдер OpenRouter (доступ к o3/Claude/Gemini
+без верификации OpenAI, RU-дружелюбная оплата).
 
 ## Решения пользователя (зафиксированы)
 - Рассылка: ChatGPT + **Parallel.ai** (НЕ Perplexity). Хостинг бэкенда рассылки —
