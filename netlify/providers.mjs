@@ -61,19 +61,24 @@ const openai = {
   label: "ChatGPT (OpenAI)",
   enabled: () => Boolean(openaiKey()),
   async start(prompt) {
+    const payload = {
+      model: OPENAI_MODEL,
+      input: prompt,
+      // deep-research модели требуют web_search_preview; обычные — web_search.
+      tools: [{ type: /deep-research/.test(OPENAI_MODEL) ? "web_search_preview" : "web_search" }],
+      background: true, // асинхронно → опрашиваем по id
+    };
+    // GPT-5 поддерживают усилие рассуждения — без верификации поднимаем глубину.
+    if (/^gpt-5/.test(OPENAI_MODEL)) {
+      payload.reasoning = { effort: process.env.OPENAI_EFFORT || "high" };
+    }
     const r = await fetch(`${OPENAI_BASE}/responses`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${openaiKey()}`,
       },
-      body: JSON.stringify({
-        model: OPENAI_MODEL,
-        input: prompt,
-        // deep-research модели требуют web_search_preview; обычные — web_search.
-        tools: [{ type: /deep-research/.test(OPENAI_MODEL) ? "web_search_preview" : "web_search" }],
-        background: true, // асинхронно → опрашиваем по id
-      }),
+      body: JSON.stringify(payload),
     });
     if (!r.ok) throw new Error(`OpenAI create ${r.status}: ${(await r.text()).slice(0, 200)}`);
     const j = await r.json();
