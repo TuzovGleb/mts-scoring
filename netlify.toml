@@ -1,0 +1,10 @@
+# Netlify-бэкенд рассылки (параллельно Render-бэкенду в backend/).
+# Деплоятся только функции: /api/start и /api/check (см. config.path в файлах).
+# Ключи — в Site settings → Environment variables: PARALLEL_API_KEY, OPENAI_API_KEY.
+[build]
+  functions = "netlify/functions"
+  # статику не публикуем — сайт уже на GitHub Pages; даём functions-only паблиш
+  publish = "netlify/public"
+
+[functions]
+  node_bundler = "esbuild"

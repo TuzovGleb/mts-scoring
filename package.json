@@ -2,5 +2,8 @@
   "name": "scoring-app",
   "private": true,
   "type": "module",
-  "description": "Опросник V0 → deep-research метапромт → (Фаза 2) рассылка по моделям"
+  "description": "Опросник V0 → deep-research метапромт → (Фаза 2) рассылка по моделям",
+  "scripts": {
+    "test": "node --test"
+  }
 }
