@@ -319,6 +319,38 @@ textarea:focus, input:focus, select:focus {
   padding-left: 10px;
 }
 
+/* Колонки deep research */
+.research-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+.research-col {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+}
+.research-col__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.research-col__name { font-weight: 600; font-size: 14px; }
+.research-col__status { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: var(--bg); }
+.research-col__status--running { background: #fef9c3; color: var(--warn); }
+.research-col__status--done { background: #dcfce7; color: var(--ok); }
+.research-col__status--error { background: #fee2e2; color: var(--red); }
+.research-col__text {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-size: 12.5px;
+  line-height: 1.5;
+  max-height: 260px;
+  overflow: auto;
+  background: var(--bg);
+  padding: 10px;
+  border-radius: 8px;
+}
+.research-col__sources { display: flex; flex-direction: column; gap: 3px; margin: 8px 0; }
+.research-col__sources a { font-size: 12px; }
+
 /* Intake (быстрый ввод) */
 .intake-paste {
   min-height: 220px;

@@ -13,6 +13,23 @@ let core = null;
 
 const DECISIONS = ["Делаем", "Валидируем", "Спинофф", "Не делаем"];
 
+// Рассылка deep research (режим Netlify, механизм A — проверка из браузера).
+// Render-путь живёт отдельно на экране «Скоринг» и здесь не дублируется.
+const RESEARCH_MODELS = [
+  { name: "parallel", label: "Parallel.ai" },
+  { name: "openai", label: "ChatGPT (OpenAI)" },
+];
+const NETLIFY_URL_KEY = "hackteam:netlifyUrl";
+const POLL_MS = 10 * 60 * 1000; // автопроверка раз в ~10 мин, пока вкладка открыта
+let pollTimer = null;
+
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+}
+
 init();
 
 async function init() {
@@ -22,6 +39,7 @@ async function init() {
 }
 
 function route() {
+  stopPolling(); // навигация сбрасывает автопроверку прошлой карточки
   const m = location.hash.match(/^#p\/(.+)$/);
   if (m) {
     const p = store.get(decodeURIComponent(m[1]));
@@ -206,33 +224,219 @@ function renderCard(p) {
   host.appendChild(card);
 }
 
-// Блок «Deep research от моделей» — заглушка до подключения рассылки (T9).
-// Если researches уже есть (после T9) — кратко перечисляем.
+function netlifyUrl() {
+  try {
+    return (localStorage.getItem(NETLIFY_URL_KEY) || "").trim();
+  } catch {
+    return "";
+  }
+}
+function statusRu(s) {
+  return { running: "идёт", done: "готово", error: "ошибка" }[s] || s || "—";
+}
+function modelLabel(name) {
+  return (RESEARCH_MODELS.find((m) => m.name === name) || {}).label || name;
+}
+
+// Блок «Deep research от моделей» — рассылка метапромта (режим Netlify) и сбор
+// ответов. Механизм A: проверка при заходе + автопроверка ~10 мин (пока вкладка
+// открыта) + ручная кнопка «Проверить». providerId хранятся в project.researches,
+// поэтому можно закрыть вкладку и вернуться — долгий ресёрч живёт у провайдера.
 function renderResearchBlock(p) {
   const sec = eln("section", "card-block");
-  sec.appendChild(blockHead("Deep research от моделей", "ChatGPT + Parallel.ai"));
-  const list = (p.researches || []).filter(Boolean);
-  if (!list.length) {
-    sec.appendChild(
-      eln(
-        "div",
-        "step-intro stub",
-        "Ещё не запускалось. Рассылку метапромта по моделям и сбор ответов подключим следующим шагом (T9)."
-      )
-    );
-  } else {
-    const wrap = eln("div", "proj-list");
-    for (const r of list) {
-      const row = eln("div", "proj-row");
-      const main = eln("div", "proj-row__main");
-      main.appendChild(eln("span", "proj-row__name", r.model || "модель"));
-      main.appendChild(eln("span", "proj-row__meta", r.status || "—"));
-      row.appendChild(main);
-      wrap.appendChild(row);
-    }
-    sec.appendChild(wrap);
-  }
+  sec.appendChild(blockHead("Deep research от моделей", "Netlify · ChatGPT + Parallel.ai"));
+
+  // Перерисовка только этого блока (не всей карточки — чтобы не сбивать ввод в др. блоках).
+  const paint = () => {
+    const fresh = store.get(p.id) || p;
+    body.innerHTML = "";
+    body.appendChild(renderResearchBody(fresh, paint));
+    armPolling(fresh, paint);
+  };
+  const body = eln("div");
+  sec.appendChild(body);
+  paint();
   return sec;
+}
+
+function renderResearchBody(p, paint) {
+  const wrap = eln("div");
+  const researches = (p.researches || []).filter(Boolean);
+  const running = researches.some((r) => r.status === "running");
+
+  // URL бэкенда Netlify.
+  const urlField = eln("div", "field");
+  urlField.appendChild(eln("label", "field__label", "URL бэкенда (Netlify)"));
+  const urlInput = eln("input");
+  urlInput.type = "text";
+  urlInput.placeholder = "https://<site>.netlify.app";
+  urlInput.value = netlifyUrl();
+  urlInput.addEventListener("input", (e) => {
+    try {
+      localStorage.setItem(NETLIFY_URL_KEY, e.target.value.trim());
+    } catch {}
+  });
+  urlField.appendChild(urlInput);
+  wrap.appendChild(urlField);
+
+  // Выбор моделей.
+  const picker = eln("div", "dispatch-models");
+  const chosen = new Set(RESEARCH_MODELS.map((m) => m.name)); // по умолчанию обе
+  for (const m of RESEARCH_MODELS) {
+    const lbl = eln("label", "checkbox");
+    const cb = eln("input");
+    cb.type = "checkbox";
+    cb.checked = true;
+    cb.addEventListener("change", (e) => {
+      if (e.target.checked) chosen.add(m.name);
+      else chosen.delete(m.name);
+    });
+    lbl.appendChild(cb);
+    lbl.appendChild(document.createTextNode(" " + m.label));
+    picker.appendChild(lbl);
+  }
+  wrap.appendChild(picker);
+
+  // Кнопки.
+  const actions = eln("div", "result-actions");
+  const sendBtn = eln("button", "btn btn--sm", running ? "Рассылка идёт…" : "Разослать");
+  sendBtn.type = "button";
+  sendBtn.disabled = running;
+  sendBtn.addEventListener("click", () => dispatchResearch(p, [...chosen], paint));
+  actions.appendChild(sendBtn);
+
+  if (researches.length) {
+    const checkBtn = eln("button", "btn btn--sm btn--ghost", "Проверить ответы");
+    checkBtn.type = "button";
+    checkBtn.addEventListener("click", () => checkResearch(p, paint));
+    actions.appendChild(checkBtn);
+  }
+  wrap.appendChild(actions);
+
+  // Статус-строка.
+  if (!netlifyUrl()) {
+    wrap.appendChild(
+      eln("div", "field__hint", "Укажи URL Netlify-бэкенда (после деплоя, T10). Без ключей провайдеры вернут заглушку.")
+    );
+  }
+
+  // Колонки результатов.
+  if (!researches.length) {
+    wrap.appendChild(eln("div", "step-intro stub", "Ещё не запускалось. Нажми «Разослать»."));
+    return wrap;
+  }
+
+  const cols = eln("div", "research-cols");
+  for (const r of researches) {
+    const col = eln("div", "research-col");
+    const head = eln("div", "research-col__head");
+    head.appendChild(eln("span", "research-col__name", modelLabel(r.model)));
+    head.appendChild(eln("span", `research-col__status research-col__status--${r.status}`, statusRu(r.status) + (r.mock ? " · мок" : "")));
+    col.appendChild(head);
+
+    if (r.status === "error") {
+      col.appendChild(eln("div", "score-flag", r.error || "Ошибка"));
+    } else if (r.status === "done") {
+      const pre = eln("pre", "research-col__text", r.text || "(пусто)");
+      col.appendChild(pre);
+      if (r.sources && r.sources.length) {
+        const src = eln("div", "research-col__sources");
+        src.appendChild(eln("div", "field__hint", "Источники:"));
+        for (const s of r.sources) {
+          const a = eln("a");
+          a.href = s.url || "#";
+          a.target = "_blank";
+          a.rel = "noopener";
+          a.textContent = s.title || s.url || "ссылка";
+          src.appendChild(a);
+        }
+        col.appendChild(src);
+      }
+      const dl = eln("button", "btn btn--ghost btn--sm", "Скачать .md");
+      dl.type = "button";
+      dl.addEventListener("click", () => {
+        const md = `# ${modelLabel(r.model)} — deep research\n\n${r.text || ""}\n`;
+        downloadText(`${safeName(p)}_${r.model}.md`, md, "text/markdown");
+      });
+      col.appendChild(dl);
+    } else {
+      col.appendChild(eln("div", "step-intro", "Задача создана, ответ ещё готовится. Можно закрыть вкладку и вернуться позже."));
+    }
+    cols.appendChild(col);
+  }
+  wrap.appendChild(cols);
+  return wrap;
+}
+
+// Включает автопроверку, если есть незавершённые задачи (механизм A).
+function armPolling(p, paint) {
+  stopPolling();
+  const running = (p.researches || []).some((r) => r && r.status === "running");
+  if (!running) return;
+  // Проверка при заходе на экран (один раз, мягко).
+  checkResearch(p, paint, true);
+  pollTimer = setInterval(() => checkResearch(p, paint, true), POLL_MS);
+}
+
+async function dispatchResearch(p, models, paint) {
+  const url = netlifyUrl();
+  if (!url) {
+    window.alert("Сначала укажи URL Netlify-бэкенда.");
+    return;
+  }
+  if (!models.length) {
+    window.alert("Отметь хотя бы одну модель.");
+    return;
+  }
+  const prompt = (p.prompt && p.prompt.trim()) || core.buildPrompt(p.answers || {});
+  try {
+    const res = await fetch(`${url.replace(/\/$/, "")}/api/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, models }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    const researches = (data.jobs || []).map((j) => ({
+      model: j.model,
+      providerId: j.providerId || null,
+      status: j.status || (j.error ? "error" : "running"),
+      text: "",
+      sources: [],
+      error: j.error || null,
+      mock: !!j.mock,
+    }));
+    store.update(p.id, { researches });
+  } catch (e) {
+    window.alert("Не удалось разослать: " + (e?.message || e));
+  }
+  paint();
+}
+
+async function checkResearch(p, paint, silent = false) {
+  const url = netlifyUrl();
+  const jobs = (store.get(p.id)?.researches || []).filter(Boolean);
+  if (!url || !jobs.length) {
+    if (!silent) window.alert("Нечего проверять или не задан URL.");
+    return;
+  }
+  try {
+    const res = await fetch(`${url.replace(/\/$/, "")}/api/check`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jobs: jobs.map((j) => ({ model: j.model, providerId: j.providerId, status: j.status })) }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    // Сливаем обновления по модели, сохраняя исходные поля.
+    const byModel = Object.fromEntries((data.jobs || []).map((j) => [j.model, j]));
+    const merged = jobs.map((j) => ({ ...j, ...(byModel[j.model] || {}) }));
+    store.update(p.id, { researches: merged });
+  } catch (e) {
+    if (!silent) window.alert("Не удалось проверить: " + (e?.message || e));
+    return;
+  }
+  paint();
 }
 
 // Блок «Интегрированный синтез» — заглушка (этап D, позже).
