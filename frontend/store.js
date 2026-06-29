@@ -39,6 +39,7 @@ export function blankProject(partial = {}) {
       v1: (partial.scores && partial.scores.v1) || {},
     },
     prompt: partial.prompt || "",
+    promptEdited: partial.promptEdited ?? false, // метапромт правили вручную в карточке
     researches: partial.researches || [],
     synthesis: partial.synthesis ?? null,
     nextSteps: partial.nextSteps || "",

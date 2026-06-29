@@ -99,4 +99,5 @@ test("blankProject: дефолты корректны", () => {
   assert.deepEqual(p.researches, []);
   assert.equal(p.synthesis, null);
   assert.equal(p.decision, null);
+  assert.equal(p.promptEdited, false, "метапромт по умолчанию не правлен");
 });

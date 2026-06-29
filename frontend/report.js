@@ -13,6 +13,34 @@ export const DEFAULT_FACTORS = [
   { id: "E", name: "Реализуемость" },
 ];
 
+// Актуальный метапромт проекта: если правили вручную (promptEdited) и текст непустой —
+// берём project.prompt; иначе генерим из ответов. Единая точка истины для показа,
+// рассылки, синтеза, скачивания. buildPrompt инъектируется (ядро/заглушка).
+export function resolvePrompt(project, buildPrompt) {
+  const p = project || {};
+  if (p.promptEdited && String(p.prompt || "").trim()) return p.prompt;
+  return buildPrompt(p.answers || {});
+}
+
+// Ответы опросника → группы по блокам для раскрываемого показа в карточке.
+// blocks — схема BLOCKS ядра [{title, fields:[{id,num,label}]}]. Пустые ответы пропускаем.
+export function answersToRows(answers, blocks) {
+  const a = answers || {};
+  const out = [];
+  for (const b of blocks || []) {
+    const items = [];
+    for (const f of b.fields || []) {
+      const v = a[f.id];
+      const text = v ? String(v.text || "").trim() : "";
+      if (!text) continue;
+      const label = (f.num ? `${f.num}. ` : "") + (f.label || f.id);
+      items.push({ label, text, tag: (v && v.tag) || "" });
+    }
+    if (items.length) out.push({ title: b.title || "", items });
+  }
+  return out;
+}
+
 // Итоги оценок проекта (0–100) для v0 и v1. computeScore инъектируется (ядро —
 // в браузере, заглушка — в тестах), поэтому функция чистая и тестируемая.
 export function projectTotals(project, computeScore) {
