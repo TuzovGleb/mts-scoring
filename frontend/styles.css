@@ -312,6 +312,12 @@ textarea:focus, input:focus, select:focus {
 }
 .decision-opt:hover { border-color: var(--red); }
 .decision-opt--on { background: var(--red); border-color: var(--red); color: #fff; }
+.stub {
+  font-style: italic;
+  opacity: 0.75;
+  border-left: 3px solid var(--line);
+  padding-left: 10px;
+}
 
 /* Intake (быстрый ввод) */
 .intake-paste {

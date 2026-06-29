@@ -186,16 +186,123 @@ function renderCard(p) {
   const editBtn = eln("a", "btn btn--sm", "Редактировать в Скоринге");
   editBtn.href = "scoring.html"; // Скоринг работает с активным проектом (он уже активен)
   actions.appendChild(editBtn);
+  const exportBtn = eln("button", "btn btn--sm btn--ghost", "Экспорт карточки .md");
+  exportBtn.type = "button";
+  exportBtn.addEventListener("click", () => {
+    const fresh = store.get(p.id) || p; // взять актуальные значения (автосейв мог обновить)
+    downloadText(`${safeName(fresh)}_карточка.md`, buildCardMd(fresh), "text/markdown");
+  });
+  actions.appendChild(exportBtn);
   card.appendChild(actions);
 
   card.appendChild(renderV0Block(p));
   card.appendChild(renderDocsBlock(p));
+  card.appendChild(renderResearchBlock(p));
+  card.appendChild(renderSynthesisBlock(p));
   card.appendChild(renderV1Block(p));
   card.appendChild(renderNextStepsBlock(p));
   card.appendChild(renderDecisionBlock(p));
 
   host.appendChild(card);
 }
+
+// Блок «Deep research от моделей» — заглушка до подключения рассылки (T9).
+// Если researches уже есть (после T9) — кратко перечисляем.
+function renderResearchBlock(p) {
+  const sec = eln("section", "card-block");
+  sec.appendChild(blockHead("Deep research от моделей", "ChatGPT + Parallel.ai"));
+  const list = (p.researches || []).filter(Boolean);
+  if (!list.length) {
+    sec.appendChild(
+      eln(
+        "div",
+        "step-intro stub",
+        "Ещё не запускалось. Рассылку метапромта по моделям и сбор ответов подключим следующим шагом (T9)."
+      )
+    );
+  } else {
+    const wrap = eln("div", "proj-list");
+    for (const r of list) {
+      const row = eln("div", "proj-row");
+      const main = eln("div", "proj-row__main");
+      main.appendChild(eln("span", "proj-row__name", r.model || "модель"));
+      main.appendChild(eln("span", "proj-row__meta", r.status || "—"));
+      row.appendChild(main);
+      wrap.appendChild(row);
+    }
+    sec.appendChild(wrap);
+  }
+  return sec;
+}
+
+// Блок «Интегрированный синтез» — заглушка (этап D, позже).
+function renderSynthesisBlock(p) {
+  const sec = eln("section", "card-block");
+  sec.appendChild(blockHead("Интегрированный синтез"));
+  sec.appendChild(
+    eln(
+      "div",
+      "step-intro stub",
+      "Сводный отчёт по ответам моделей появится позже — после сбора deep research."
+    )
+  );
+  return sec;
+}
+
+// ── Экспорт карточки одним .md ──
+function scoreSection(title, answers, scores) {
+  const r = core.computeScore(answers, scores || {});
+  const lines = [`## ${title}`];
+  if (!r.perFactor.some((f) => f.score != null)) {
+    lines.push("_не проставлено_");
+    return lines.join("\n");
+  }
+  for (const f of r.perFactor) {
+    const s = f.score != null ? f.score : "—";
+    lines.push(`- ${f.name} (вес ${f.weight}%): ${s} · увер. ${f.confidence}`);
+  }
+  if (r.total != null) lines.push(`\n**Итог: ${r.total}/100**`);
+  if (r.overclaim) lines.push(`\n⚠ Есть балл >3 на уверенности L — сначала проверь допущение.`);
+  return lines.join("\n");
+}
+
+function buildCardMd(p) {
+  const answers = p.answers || {};
+  const out = [];
+  out.push(`# ${p.name || "Без названия"}`);
+  if (p.desc) out.push(`\n${p.desc}`);
+
+  out.push(`\n${scoreSection("Оценка v0", answers, (p.scores && p.scores.v0) || {})}`);
+
+  out.push(`\n## Deep research от моделей`);
+  const researches = (p.researches || []).filter(Boolean);
+  if (!researches.length) {
+    out.push("_не запускалось_");
+  } else {
+    for (const r of researches) {
+      out.push(`\n### ${r.model || "модель"} — ${r.status || "—"}`);
+      if (r.text) out.push(r.text);
+      if (r.sources && r.sources.length) {
+        out.push("\nИсточники:");
+        for (const s of r.sources) out.push(`- ${s}`);
+      }
+    }
+  }
+
+  out.push(`\n## Интегрированный синтез\n_появится позже_`);
+
+  out.push(`\n${scoreSection("Оценка v1", answers, (p.scores && p.scores.v1) || {})}`);
+
+  out.push(`\n## Следующие шаги\n${p.nextSteps ? p.nextSteps : "_—_"}`);
+  out.push(`\n## Решение\n${p.decision ? p.decision : "_не принято_"}`);
+
+  const prompt = (p.prompt && p.prompt.trim()) || core.buildPrompt(answers);
+  out.push(`\n## Метапромт deep-research\n\`\`\`\n${prompt}\n\`\`\``);
+
+  return out.join("\n") + "\n";
+}
+
+// ===== Карточка (оболочка; блоки наполняются в T6–T8) =====
 
 // Заголовок блока внутри карточки.
 function blockHead(title, sub) {
