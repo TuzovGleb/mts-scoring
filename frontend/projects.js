@@ -111,11 +111,10 @@ function renderList() {
   const newBtn = eln("button", "btn btn--sm", "Новый проект");
   newBtn.type = "button";
   newBtn.addEventListener("click", () => {
-    const raw = window.prompt("Название проекта:", "Новый проект");
-    if (raw === null) return;
-    const name = raw.trim() || "Без названия";
-    const p = store.create({ name });
-    go(`#p/${encodeURIComponent(p.id)}`);
+    // Новая оценка начинается с анкеты: создаём (или переиспользуем пустой) проект
+    // и ведём в Скоринг. Имя подставится из первого вопроса при заполнении.
+    store.startNew();
+    location.href = "scoring.html";
   });
   actions.appendChild(newBtn);
   card.appendChild(actions);
