@@ -6,7 +6,7 @@
 import { renderNavbar } from "./nav.js";
 import { loadCore } from "./core-loader.js";
 import { store } from "./store.js";
-import { buildSynthesisPrompt, mdToHtml } from "./report.js";
+import { buildSynthesisPrompt, mdToHtml, parseScores } from "./report.js";
 
 renderNavbar("projects");
 const host = document.getElementById("app");
@@ -527,7 +527,8 @@ async function dispatchSynthesis(p, paint) {
     window.alert("Сначала укажи URL Netlify-бэкенда (в блоке Deep research).");
     return;
   }
-  const prompt = buildSynthesisPrompt(store.get(p.id) || p);
+  const factors = Object.entries(core.FACTORS).map(([id, m]) => ({ id, name: m.name }));
+  const prompt = buildSynthesisPrompt(store.get(p.id) || p, factors);
   try {
     const res = await fetch(`${url.replace(/\/$/, "")}/api/start`, {
       method: "POST",
@@ -570,6 +571,23 @@ async function checkSynthesis(p, paint, silent = false) {
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     const job = (data.jobs || [])[0] || {};
     store.update(p.id, { synthesis: { ...syn, ...job } });
+    // Авто-простановка v1 из синтеза — один раз (флаг scored), не затирая ручные баллы.
+    const fresh = store.get(p.id);
+    const sy = fresh && fresh.synthesis;
+    if (sy && sy.status === "done" && !sy.scored) {
+      const ids = Object.keys(core.FACTORS);
+      const parsed = parseScores(sy.text, ids);
+      const curV1 = (fresh.scores && fresh.scores.v1) || {};
+      const toApply = {};
+      for (const id of ids) if (parsed[id] != null && curV1[id] == null) toApply[id] = parsed[id];
+      const patch = { synthesis: { ...sy, scored: true } };
+      if (Object.keys(toApply).length) patch.scores = { v1: toApply };
+      store.update(p.id, patch);
+      if (Object.keys(toApply).length) {
+        renderCard(store.get(p.id)); // полный ререндер, чтобы обновился и блок v1
+        return;
+      }
+    }
   } catch (e) {
     if (!silent) window.alert("Не удалось проверить синтез: " + (e && e.message ? e.message : e));
     return;
@@ -844,6 +862,12 @@ function renderDocsBlock(p) {
 function renderV1Block(p) {
   const sec = eln("section", "card-block");
   sec.appendChild(blockHead("Оценка v1", "после deep research — проставь баллы заново"));
+
+  if (p.synthesis && p.synthesis.scored) {
+    sec.appendChild(
+      eln("div", "field__hint", "✓ Баллы предложены автоматически из синтеза — проверь и скорректируй при необходимости.")
+    );
+  }
 
   const v1 = { ...((p.scores && p.scores.v1) || {}) };
   const answers = p.answers || {};
