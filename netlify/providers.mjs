@@ -31,12 +31,16 @@ const parallel = {
     return { providerId: id, status: "running" };
   },
   async check(id) {
-    const headers = { "x-api-key": process.env.PARALLEL_API_KEY };
+    const headers = { "x-api-key": parallelKey() };
     const st = await fetch(`${PARALLEL_BASE}/tasks/runs/${id}`, { headers });
-    if (!st.ok) throw new Error(`Parallel status ${st.status}`);
-    const status = (await st.json()).status;
+    if (!st.ok) throw new Error(`Parallel status ${st.status}: ${(await st.text()).slice(0, 300)}`);
+    const sj = await st.json();
+    const status = sj.status;
     const terminalBad = ["failed", "cancelled", "canceled", "error"];
-    if (terminalBad.includes(status)) return { status: "error", error: `Parallel: ${status}` };
+    if (terminalBad.includes(status)) {
+      const detail = sj.error?.message || sj.error || sj.detail || "";
+      return { status: "error", error: `Parallel: ${status}${detail ? " — " + detail : ""}` };
+    }
     if (status !== "completed") return { status: "running" };
     const res = await fetch(`${PARALLEL_BASE}/tasks/runs/${id}/result`, { headers });
     if (!res.ok) throw new Error(`Parallel result ${res.status}: ${(await res.text()).slice(0, 200)}`);
@@ -83,7 +87,11 @@ const openai = {
     if (!r.ok) throw new Error(`OpenAI get ${r.status}`);
     const j = await r.json();
     if (j.status === "failed" || j.status === "cancelled" || j.status === "incomplete") {
-      return { status: "error", error: `OpenAI: ${j.status}` };
+      const detail =
+        j.error?.message ||
+        j.incomplete_details?.reason ||
+        (j.error ? JSON.stringify(j.error) : "");
+      return { status: "error", error: `OpenAI: ${j.status}${detail ? " — " + detail : ""}` };
     }
     if (j.status !== "completed") return { status: "running" };
     // Текст + источники из output[].content[].
