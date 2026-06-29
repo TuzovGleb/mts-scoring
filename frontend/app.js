@@ -1,4 +1,4 @@
-import { unlock } from "./protected.js";
+import { loadCore } from "./core-loader.js";
 
 // Ядро (схема опросника + генератор метапромта + скоринг) зашифровано:
 // загружается динамически после ввода пароля (см. init в конце файла).
@@ -675,12 +675,7 @@ function resetAll() {
 // Сначала пароль → расшифровка ядра → динамический import из blob-URL → запуск.
 async function init() {
   const host = document.getElementById("app");
-  const code = await unlock("scoring-core", host);
-  const blobUrl = URL.createObjectURL(
-    new Blob([code], { type: "text/javascript" })
-  );
-  const core = await import(blobUrl);
-  URL.revokeObjectURL(blobUrl);
+  const core = await loadCore(host);
   ({ BLOCKS, TAGS, DEFAULTS, buildPrompt, promptTitle, computeScore } = core);
   buildTemplate = core.buildTemplate;
   parseTemplate = core.parseTemplate;
