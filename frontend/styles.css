@@ -256,6 +256,22 @@ textarea:focus, input:focus, select:focus {
   color: var(--red-dark);
 }
 
+/* Projects (реестр) */
+.proj-list { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+.proj-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.proj-row:hover { border-color: var(--red); background: var(--bg); }
+.proj-row__name { font-weight: 600; font-size: 14.5px; }
+.proj-row__meta { font-size: 12.5px; color: var(--muted); }
+
 /* Intake (быстрый ввод) */
 .intake-paste {
   min-height: 220px;

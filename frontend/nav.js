@@ -7,6 +7,7 @@ export function renderNavbar(active) {
     { id: "types", href: "types.html", label: "Суть оценки" },
     { id: "scales", href: "scales.html", label: "Шкалы оценок" },
     { id: "scoring", href: "scoring.html", label: "Скоринг" },
+    { id: "projects", href: "projects.html", label: "Проекты" },
   ];
   const nav = document.createElement("nav");
   nav.className = "hub-nav";
