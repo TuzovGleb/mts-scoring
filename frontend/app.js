@@ -3,6 +3,7 @@ import { unlock } from "./protected.js";
 // Ядро (схема опросника + генератор метапромта + скоринг) зашифровано:
 // загружается динамически после ввода пароля (см. init в конце файла).
 let BLOCKS, TAGS, DEFAULTS, buildPrompt, promptTitle, computeScore;
+let buildTemplate, parseTemplate;
 let STEPS = [];
 
 const LS_KEY = "scoring-app:v1";
@@ -163,6 +164,77 @@ function renderField(f) {
   return wrap;
 }
 
+// ── Рендер шага «Быстрый ввод» (шаблон + разбор) ──
+function renderIntakeStep() {
+  const card = el("div", { class: "card" });
+  card.appendChild(
+    el("div", { class: "step-head" }, el("h2", {}, "Быстрый ввод — вставить ответы разом"))
+  );
+  card.appendChild(
+    el(
+      "div",
+      { class: "step-intro" },
+      "Два пути. Можно пройти опросник по шагам (кнопка «Далее» внизу). Или вставить все ответы сразу: скопируй шаблон вопросов, заполни его (хоть с помощью Claude в чате), вставь обратно и нажми «Разобрать» — поля заполнятся и сразу соберётся метапромт."
+    )
+  );
+
+  const copyRow = el("div", { class: "result-actions" });
+  const copyBtn = el(
+    "button",
+    { class: "btn btn--sm", type: "button" },
+    "Скопировать шаблон вопросов"
+  );
+  copyBtn.addEventListener("click", async () => {
+    const tpl = buildTemplate();
+    try {
+      await navigator.clipboard.writeText(tpl);
+    } catch {
+      const t = el("textarea", {});
+      t.value = tpl;
+      document.body.appendChild(t);
+      t.select();
+      document.execCommand("copy");
+      t.remove();
+    }
+    toast("Шаблон скопирован");
+  });
+  copyRow.appendChild(copyBtn);
+  card.appendChild(copyRow);
+
+  const lbl = el("label", { class: "field__label", style: "margin-top:18px;display:block;" }, "Вставь заполненный шаблон сюда:");
+  card.appendChild(lbl);
+  const ta = el("textarea", {
+    class: "intake-paste",
+    placeholder: "[q1] Название проекта/компании: ...\n[q2] Что делает одной фразой: ... (Ф)\n…",
+  });
+  card.appendChild(ta);
+
+  const parseRow = el("div", { class: "result-actions" });
+  const parseBtn = el("button", { class: "btn", type: "button" }, "Разобрать и заполнить →");
+  parseBtn.addEventListener("click", () => {
+    const { answers } = parseTemplate(ta.value);
+    let n = 0;
+    for (const [id, v] of Object.entries(answers)) {
+      if (!v.text && !v.tag) continue; // пустые строки не затирают дефолты/прежние ответы
+      state.answers[id] = { text: "", tag: "", ...state.answers[id], ...v };
+      n++;
+    }
+    if (!n) {
+      toast("Не нашёл строк [id] — вставь шаблон целиком");
+      return;
+    }
+    saveState();
+    state.step = STEPS.length - 1; // сразу к метапромту
+    render();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    toast(`Заполнено полей: ${n}`);
+  });
+  parseRow.appendChild(parseBtn);
+  card.appendChild(parseRow);
+
+  return card;
+}
+
 // ── Рендер шага-блока ──
 function renderBlockStep(block) {
   const card = el("div", { class: "card" });
@@ -195,7 +267,7 @@ function renderResultStep() {
     el(
       "div",
       { class: "step-intro" },
-      "Собран из ответов опросника по шаблону v4. Скопируй целиком и вставь в research-модель. В Фазе 2 рассылка пойдёт автоматически по API."
+      "Собран из ответов опросника по шаблону v6 (с блоками G — самое рискованное допущение и тест, и H — гипотезы на проверку). Скопируй целиком и вставь в research-модель. В Фазе 2 рассылка пойдёт автоматически по API."
     )
   );
 
@@ -528,6 +600,8 @@ function render() {
   const step = STEPS[state.step];
   if (step.id === "result") {
     app.appendChild(renderResultStep());
+  } else if (step.id === "intake") {
+    app.appendChild(renderIntakeStep());
   } else {
     app.appendChild(renderBlockStep(step));
   }
@@ -606,7 +680,13 @@ async function init() {
   const core = await import(blobUrl);
   URL.revokeObjectURL(blobUrl);
   ({ BLOCKS, TAGS, DEFAULTS, buildPrompt, promptTitle, computeScore } = core);
-  STEPS = [...BLOCKS, { id: "result", title: "Результат" }];
+  buildTemplate = core.buildTemplate;
+  parseTemplate = core.parseTemplate;
+  STEPS = [
+    { id: "intake", title: "Быстрый ввод" },
+    ...BLOCKS,
+    { id: "result", title: "Результат" },
+  ];
 
   loadState();
   document.getElementById("btn-export").addEventListener("click", exportJson);
