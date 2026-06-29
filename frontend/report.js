@@ -13,6 +13,23 @@ export const DEFAULT_FACTORS = [
   { id: "E", name: "Реализуемость" },
 ];
 
+// Итоги оценок проекта (0–100) для v0 и v1. computeScore инъектируется (ядро —
+// в браузере, заглушка — в тестах), поэтому функция чистая и тестируемая.
+export function projectTotals(project, computeScore) {
+  const answers = (project && project.answers) || {};
+  const scores = (project && project.scores) || {};
+  const total = (s) => {
+    if (!s || !Object.keys(s).length) return null;
+    try {
+      const r = computeScore(answers, s);
+      return r && typeof r.total === "number" ? r.total : null;
+    } catch {
+      return null;
+    }
+  };
+  return { v0: total(scores.v0), v1: total(scores.v1) };
+}
+
 // Промт синтеза: сводит готовые deep-research отчёты в один структурированный
 // + требует в конце машиночитаемую строку БАЛЛЫ (для авто-простановки v1).
 export function buildSynthesisPrompt(project, factors = DEFAULT_FACTORS) {

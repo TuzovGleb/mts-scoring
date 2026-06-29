@@ -6,7 +6,7 @@
 import { renderNavbar } from "./nav.js";
 import { loadCore } from "./core-loader.js";
 import { store } from "./store.js";
-import { buildSynthesisPrompt, mdToHtml, parseScores } from "./report.js";
+import { buildSynthesisPrompt, mdToHtml, parseScores, projectTotals } from "./report.js";
 
 renderNavbar("projects");
 const host = document.getElementById("app");
@@ -70,15 +70,16 @@ function eln(tag, cls, text) {
   return n;
 }
 
-// Итог оценки v0 проекта (0–100) или null, если не считается.
-function v0Total(p) {
-  const scores = (p.scores && p.scores.v0) || {};
-  if (!Object.keys(scores).length) return null;
-  try {
-    return core.computeScore(p.answers || {}, scores).total;
-  } catch {
-    return null;
-  }
+// Класс-модификатор бейджа решения (для цвета).
+function decisionClass(d) {
+  return (
+    {
+      Делаем: "go",
+      Валидируем: "validate",
+      Спинофф: "spinoff",
+      "Не делаем": "stop",
+    }[d] || "neutral"
+  );
 }
 
 // Имя файла из названия проекта (безопасное).
@@ -153,12 +154,20 @@ function renderRow(p) {
   });
 
   const main = eln("div", "proj-row__main");
-  main.appendChild(eln("span", "proj-row__name", p.name || "Без названия"));
 
+  // Имя + бейдж решения рядом.
+  const nameLine = eln("div", "proj-row__nameline");
+  nameLine.appendChild(eln("span", "proj-row__name", p.name || "Без названия"));
+  if (p.decision) {
+    nameLine.appendChild(eln("span", `decision-badge decision-badge--${decisionClass(p.decision)}`, p.decision));
+  }
+  main.appendChild(nameLine);
+
+  // Итоги оценок: v0 (после скоринга) и v1 (после deep research).
+  const { v0, v1 } = projectTotals(p, core.computeScore);
   const bits = [];
-  const total = v0Total(p);
-  if (total != null) bits.push(`v0 · ${total}/100`);
-  if (p.decision) bits.push(p.decision);
+  if (v0 != null) bits.push(`v0 ${v0}/100`);
+  if (v1 != null) bits.push(`v1 ${v1}/100`);
   if (p.desc) bits.push(p.desc);
   bits.push(new Date(p.updatedAt).toLocaleDateString("ru-RU"));
   main.appendChild(eln("span", "proj-row__meta", bits.join("  ·  ")));

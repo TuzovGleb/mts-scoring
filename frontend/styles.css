@@ -287,6 +287,19 @@ textarea:focus, input:focus, select:focus {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.proj-row__nameline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.decision-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.decision-badge--go { background: #dcfce7; color: var(--ok); }
+.decision-badge--validate { background: #fef9c3; color: var(--warn); }
+.decision-badge--spinoff { background: #dbeafe; color: #1d4ed8; }
+.decision-badge--stop { background: #fee2e2; color: var(--red); }
+.decision-badge--neutral { background: var(--bg); color: var(--muted); }
 .proj-row__ops { display: flex; gap: 6px; flex-shrink: 0; }
 .proj-row__del:hover { border-color: var(--red); color: var(--red); }
 .proj-back { margin-bottom: 14px; }
