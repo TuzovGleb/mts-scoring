@@ -11,18 +11,20 @@ const BACKEND_LS = "scoring-app:backend";
 
 // Провайдеры для рассылки (Фаза 2). name должен совпадать с бэкендом.
 const DISPATCH_MODELS = [
-  { name: "perplexity", label: "Perplexity" },
+  { name: "parallel", label: "Parallel.ai" },
   { name: "openai", label: "ChatGPT" },
   { name: "gemini", label: "Gemini" },
   { name: "anthropic", label: "Claude" },
 ];
+// По умолчанию отмечены те, что подключаем сейчас.
+const DISPATCH_DEFAULT = ["parallel", "openai"];
 
 // Состояние рассылки (не персистится — живёт в рамках сессии экрана результата).
 const dispatch = {
   jobId: null,
   status: null,
   results: {},
-  selected: DISPATCH_MODELS.map((m) => m.name),
+  selected: [...DISPATCH_DEFAULT],
   timer: null,
 };
 

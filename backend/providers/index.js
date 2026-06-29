@@ -1,9 +1,10 @@
-import perplexity from "./perplexity.js";
+import parallel from "./parallel.js";
 import openai from "./openai.js";
 import gemini from "./gemini.js";
 import anthropic from "./anthropic.js";
+import perplexity from "./perplexity.js";
 
-export const PROVIDERS = { perplexity, openai, gemini, anthropic };
+export const PROVIDERS = { parallel, openai, gemini, anthropic, perplexity };
 
 // Мок-режим: если у провайдера нет ключа, возвращаем заглушку,
 // чтобы рассылку можно было протестировать end-to-end без реальных API.
