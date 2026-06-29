@@ -1,4 +1,5 @@
 import { loadCore } from "./core-loader.js";
+import { store } from "./store.js";
 
 // Ядро (схема опросника + генератор метапромта + скоринг) зашифровано:
 // загружается динамически после ввода пароля (см. init в конце файла).
@@ -6,7 +7,7 @@ let BLOCKS, TAGS, DEFAULTS, buildPrompt, promptTitle, computeScore;
 let buildTemplate, parseTemplate;
 let STEPS = [];
 
-const LS_KEY = "scoring-app:v1";
+const STEP_KEY = "scoring-app:step"; // шаг навигации — UI-состояние, отдельно от проекта
 const BACKEND_LS = "scoring-app:backend";
 
 // Провайдеры для рассылки (Фаза 2). name должен совпадать с бэкендом.
@@ -33,23 +34,24 @@ function backendUrl() {
 }
 
 // ── Состояние ──
+// state — рабочая копия в памяти; персистится в АКТИВНЫЙ проект через store.js.
 const state = {
+  projectId: null,
   answers: {}, // { fieldId: { text, tag } }
-  scores: {}, // { A..E: 1..5 }
+  scores: {}, // { A..E: 1..5 } — это scores.v0 проекта
   step: 0,
 };
 
 function loadState() {
   try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (raw) {
-      const saved = JSON.parse(raw);
-      state.answers = saved.answers || {};
-      state.scores = saved.scores || {};
-      state.step = saved.step || 0;
-    }
+    store.migrateLegacy(); // одноразово перенесёт старый черновик scoring-app:v1 в проект
+    const active = store.getOrCreateActive();
+    state.projectId = active.id;
+    state.answers = active.answers || {};
+    state.scores = (active.scores && active.scores.v0) || {};
+    state.step = Number(localStorage.getItem(STEP_KEY)) || 0;
   } catch (e) {
-    console.warn("Не удалось прочитать сохранение:", e);
+    console.warn("Не удалось прочитать проект:", e);
   }
   // Значения по умолчанию для незаполненных полей.
   for (const [id, v] of Object.entries(DEFAULTS)) {
@@ -61,7 +63,17 @@ function loadState() {
 
 function saveState() {
   try {
-    localStorage.setItem(LS_KEY, JSON.stringify(state));
+    if (state.projectId) {
+      const patch = { answers: state.answers, scores: { v0: state.scores } };
+      // Автоназвание/описание из ответов, пока пользователь не задал своё.
+      const proj = store.get(state.projectId);
+      const q1 = (state.answers.q1 && state.answers.q1.text || "").trim();
+      const q2 = (state.answers.q2 && state.answers.q2.text || "").trim();
+      if (q1 && (!proj || /^(Без названия|Новый проект)$/.test(proj.name))) patch.name = q1;
+      if (q2 && (!proj || !proj.desc)) patch.desc = q2.slice(0, 140);
+      store.update(state.projectId, patch);
+    }
+    localStorage.setItem(STEP_KEY, String(state.step));
   } catch (e) {
     console.warn("Не удалось сохранить:", e);
   }
@@ -274,6 +286,7 @@ function renderResultStep() {
   );
 
   const prompt = buildPrompt(state.answers);
+  if (state.projectId) store.update(state.projectId, { prompt }); // снапшот метапромта в проект
   const pre = el("pre", { class: "result-prompt" }, prompt);
   promptCard.appendChild(pre);
 
