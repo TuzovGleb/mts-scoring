@@ -216,6 +216,10 @@ function renderCard(p) {
     downloadText(`${safeName(fresh)}_карточка.md`, buildCardMd(fresh), "text/markdown");
   });
   actions.appendChild(exportBtn);
+  const pdfBtn = eln("button", "btn btn--sm btn--ghost", "Скачать PDF");
+  pdfBtn.type = "button";
+  pdfBtn.addEventListener("click", () => exportPdf(store.get(p.id) || p));
+  actions.appendChild(pdfBtn);
   card.appendChild(actions);
 
   card.appendChild(renderV0Block(p));
@@ -608,12 +612,17 @@ function buildCardMd(p) {
       if (r.text) out.push(r.text);
       if (r.sources && r.sources.length) {
         out.push("\nИсточники:");
-        for (const s of r.sources) out.push(`- ${s}`);
+        for (const s of r.sources) out.push(`- ${(s && (s.title || s.url)) || s}`);
       }
     }
   }
 
-  out.push(`\n## Интегрированный синтез\n_появится позже_`);
+  const syn = p.synthesis;
+  if (syn && syn.status === "done" && String(syn.text || "").trim()) {
+    out.push(`\n## Интегрированный синтез\n${syn.text}`);
+  } else {
+    out.push(`\n## Интегрированный синтез\n_не собран_`);
+  }
 
   out.push(`\n${scoreSection("Оценка v1", answers, (p.scores && p.scores.v1) || {})}`);
 
@@ -624,6 +633,108 @@ function buildCardMd(p) {
   out.push(`\n## Метапромт deep-research\n\`\`\`\n${prompt}\n\`\`\``);
 
   return out.join("\n") + "\n";
+}
+
+// ── Экспорт карточки в PDF (через печать браузера) ──
+function escHtml(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+// HTML-таблица оценки (v0/v1) для печати.
+function scoreHtmlBlock(title, answers, scores) {
+  const r = core.computeScore(answers, scores || {});
+  if (!r.perFactor.some((f) => f.score != null)) {
+    return `<h2>${title}</h2><p class="muted">не проставлено</p>`;
+  }
+  const rows = r.perFactor
+    .map(
+      (f) =>
+        `<tr><td>${escHtml(f.name)}</td><td>${f.weight}%</td><td>${
+          f.score != null ? f.score : "—"
+        }</td><td>${f.confidence}</td></tr>`
+    )
+    .join("");
+  return (
+    `<h2>${title}</h2><table><thead><tr><th>Фактор</th><th>Вес</th><th>Балл</th><th>Увер.</th></tr></thead><tbody>${rows}</tbody></table>` +
+    (r.total != null ? `<p><strong>Итог: ${r.total}/100</strong></p>` : "")
+  );
+}
+
+function buildCardHtml(p) {
+  const answers = p.answers || {};
+  const out = [];
+  out.push(`<h1>${escHtml(p.name || "Без названия")}</h1>`);
+  if (p.desc) out.push(`<p class="muted">${escHtml(p.desc)}</p>`);
+
+  out.push(scoreHtmlBlock("Оценка v0", answers, (p.scores && p.scores.v0) || {}));
+
+  const syn = p.synthesis;
+  if (syn && syn.status === "done" && String(syn.text || "").trim()) {
+    out.push(`<h2>Интегрированный синтез</h2><div class="report-doc">${mdToHtml(syn.text)}</div>`);
+  }
+
+  const reps = (p.researches || []).filter((r) => r && r.status === "done" && r.text);
+  if (reps.length) {
+    out.push(`<h2>Deep research — отчёты моделей</h2>`);
+    for (const r of reps) {
+      out.push(`<h3>${escHtml(modelLabel(r.model))}</h3>`);
+      out.push(`<div class="report-doc">${mdToHtml(r.text)}</div>`);
+      if (r.sources && r.sources.length) {
+        out.push(
+          `<p class="muted">Источники:</p><ul>` +
+            r.sources
+              .map((s) => `<li><a href="${escHtml(s.url || "")}">${escHtml(s.title || s.url || "")}</a></li>`)
+              .join("") +
+            `</ul>`
+        );
+      }
+    }
+  }
+
+  out.push(scoreHtmlBlock("Оценка v1", answers, (p.scores && p.scores.v1) || {}));
+  out.push(`<h2>Следующие шаги</h2><p>${escHtml(p.nextSteps || "—").replace(/\n/g, "<br>")}</p>`);
+  out.push(`<h2>Решение</h2><p><strong>${escHtml(p.decision || "не принято")}</strong></p>`);
+  return out.join("\n");
+}
+
+const PRINT_CSS = `
+  @page { size: A4; margin: 18mm 16mm; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font: 14px/1.6 -apple-system, Segoe UI, Roboto, Arial, sans-serif; color: #1a1a1a; max-width: 900px; margin: 0 auto; padding: 24px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 22px 0 8px; border-bottom: 2px solid #e5044c; padding-bottom: 3px; page-break-after: avoid; }
+  h3 { font-size: 15px; margin: 14px 0 6px; page-break-after: avoid; }
+  p { margin: 8px 0; }
+  .muted { color: #666; font-size: 13px; }
+  ul, ol { margin: 8px 0; padding-left: 22px; }
+  li { margin: 3px 0; }
+  a { color: #b00038; word-break: break-all; }
+  code { background: #f3f4f6; padding: 1px 5px; border-radius: 4px; }
+  pre { background: #f3f4f6; padding: 12px; border-radius: 8px; overflow: auto; white-space: pre-wrap; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 13px; page-break-inside: avoid; }
+  th, td { border: 1px solid #d0d0d0; padding: 7px 10px; text-align: left; vertical-align: top; }
+  th { background: #f7f7f8; }
+  h2, h3 { break-after: avoid; }
+`;
+
+function exportPdf(p) {
+  const html =
+    `<!doctype html><html lang="ru"><head><meta charset="utf-8">` +
+    `<title>${escHtml(safeName(p))}</title><style>${PRINT_CSS}</style></head><body>` +
+    buildCardHtml(p) +
+    `<script>window.onload=function(){setTimeout(function(){window.focus();window.print();},350);};<\/script>` +
+    `</body></html>`;
+  const w = window.open("", "_blank");
+  if (!w) {
+    window.alert("Разреши всплывающие окна, чтобы сохранить PDF (печать).");
+    return;
+  }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
 }
 
 // ===== Карточка (оболочка; блоки наполняются в T6–T8) =====
