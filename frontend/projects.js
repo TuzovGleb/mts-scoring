@@ -11,6 +11,8 @@ renderNavbar("projects");
 const host = document.getElementById("app");
 let core = null;
 
+const DECISIONS = ["Делаем", "Валидируем", "Спинофф", "Не делаем"];
+
 init();
 
 async function init() {
@@ -188,6 +190,9 @@ function renderCard(p) {
 
   card.appendChild(renderV0Block(p));
   card.appendChild(renderDocsBlock(p));
+  card.appendChild(renderV1Block(p));
+  card.appendChild(renderNextStepsBlock(p));
+  card.appendChild(renderDecisionBlock(p));
 
   host.appendChild(card);
 }
@@ -289,5 +294,113 @@ function renderDocsBlock(p) {
   actions.appendChild(mdBtn);
 
   sec.appendChild(actions);
+  return sec;
+}
+
+// Блок «Оценка v1» — ручной ввод баллов 1–5 после deep research (тот же
+// computeScore, что и v0; уверенность H/M/L — из тегов ответов). Автосейв.
+function renderV1Block(p) {
+  const sec = eln("section", "card-block");
+  sec.appendChild(blockHead("Оценка v1", "после deep research — проставь баллы заново"));
+
+  const v1 = { ...((p.scores && p.scores.v1) || {}) };
+  const answers = p.answers || {};
+
+  const totalWrap = eln("div");
+  totalWrap.style.marginTop = "14px";
+  const flagWrap = eln("div");
+
+  function refreshTotal() {
+    const r = core.computeScore(answers, v1);
+    totalWrap.innerHTML = "";
+    if (r.total != null) {
+      totalWrap.appendChild(eln("div", "step-meta", "Балл v1 (0–100)"));
+      totalWrap.appendChild(eln("div", "score-total", String(r.total)));
+    } else {
+      totalWrap.appendChild(eln("div", "step-meta", "Проставь баллы, чтобы увидеть итог v1."));
+    }
+    flagWrap.innerHTML = "";
+    if (r.overclaim) {
+      flagWrap.appendChild(
+        eln(
+          "div",
+          "score-flag",
+          "⚠ Балл >3 на уверенности L (догадка). Сначала проверь допущение, не коммить бюджет."
+        )
+      );
+    }
+  }
+
+  const grid = eln("div", "score-grid");
+  const base = core.computeScore(answers, v1); // имена факторов и уверенность
+  for (const f of base.perFactor) {
+    const row = eln("div", "score-row");
+    const left = eln("div");
+    left.appendChild(eln("div", "score-row__name", `${f.name} · вес ${f.weight}%`));
+    row.appendChild(left);
+
+    const sel = eln("select");
+    const zero = eln("option", null, "— балл —");
+    zero.value = "";
+    sel.appendChild(zero);
+    for (let i = 1; i <= 5; i++) {
+      const o = eln("option", null, String(i));
+      o.value = String(i);
+      if (f.score === i) o.selected = true;
+      sel.appendChild(o);
+    }
+    sel.addEventListener("change", (e) => {
+      const v = e.target.value;
+      if (v) v1[f.id] = Number(v);
+      else delete v1[f.id];
+      store.update(p.id, { scores: { v1 } });
+      refreshTotal();
+    });
+    row.appendChild(sel);
+    row.appendChild(eln("span", `conf conf--${f.confidence}`, `увер. ${f.confidence}`));
+    grid.appendChild(row);
+  }
+  sec.appendChild(grid);
+  sec.appendChild(totalWrap);
+  sec.appendChild(flagWrap);
+  refreshTotal();
+  return sec;
+}
+
+// Блок «Следующие шаги» — свободный текст. Автосейв на ввод (без перерисовки).
+function renderNextStepsBlock(p) {
+  const sec = eln("section", "card-block");
+  sec.appendChild(blockHead("Следующие шаги"));
+  const ta = eln("textarea");
+  ta.value = p.nextSteps || "";
+  ta.placeholder = "Что делаем дальше: проверки гипотез, RAT-тесты, кому показать, дедлайны…";
+  ta.addEventListener("input", () => {
+    store.update(p.id, { nextSteps: ta.value });
+  });
+  sec.appendChild(ta);
+  return sec;
+}
+
+// Блок «Решение» — выбор одной из четырёх опций. Повторный клик снимает выбор.
+function renderDecisionBlock(p) {
+  const sec = eln("section", "card-block");
+  sec.appendChild(blockHead("Решение"));
+
+  let current = p.decision || null;
+  const opts = eln("div", "decision-opts");
+  const btns = [];
+  for (const d of DECISIONS) {
+    const b = eln("button", "decision-opt", d);
+    b.type = "button";
+    if (d === current) b.classList.add("decision-opt--on");
+    b.addEventListener("click", () => {
+      current = current === d ? null : d;
+      store.update(p.id, { decision: current });
+      for (const x of btns) x.el.classList.toggle("decision-opt--on", x.d === current);
+    });
+    btns.push({ el: b, d });
+    opts.appendChild(b);
+  }
+  sec.appendChild(opts);
   return sec;
 }

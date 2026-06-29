@@ -297,6 +297,21 @@ textarea:focus, input:focus, select:focus {
   min-width: 20px;
   text-align: center;
 }
+.decision-opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.decision-opt {
+  font: inherit;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 8px 16px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+}
+.decision-opt:hover { border-color: var(--red); }
+.decision-opt--on { background: var(--red); border-color: var(--red); color: #fff; }
 
 /* Intake (быстрый ввод) */
 .intake-paste {

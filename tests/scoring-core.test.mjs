@@ -87,6 +87,15 @@ test("скоринг: считает итог и флаг overclaim", () => {
   assert.equal(r.perFactor.length, 5);
 });
 
+test("скоринг v1: взвешенный итог по весам 25/25/20/20/10", () => {
+  // (5/5·25)+(4/5·25)+(3/5·20)+(2/5·20)+(1/5·10) = 25+20+12+8+2 = 67
+  const r = computeScore(mp, { A: 5, B: 4, C: 3, D: 2, E: 1 });
+  assert.equal(r.total, 67);
+  // Частичная оценка: только A и B → итог нормируется на использованный вес (50).
+  const partial = computeScore(mp, { A: 5, B: 5 });
+  assert.equal(partial.total, 100);
+});
+
 test("шаблон: round-trip [id]", () => {
   const filled = buildTemplate()
     .split("\n")
