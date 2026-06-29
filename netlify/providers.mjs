@@ -48,16 +48,18 @@ const parallel = {
 // ── OpenAI (ChatGPT, Responses API, background) ──
 const OPENAI_BASE = "https://api.openai.com/v1";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5.1";
+// Приоритет — проектный ключ OPENAI_API_MTS_KEY, иначе общий OPENAI_API_KEY.
+const openaiKey = () => process.env.OPENAI_API_MTS_KEY || process.env.OPENAI_API_KEY;
 
 const openai = {
   label: "ChatGPT (OpenAI)",
-  enabled: () => Boolean(process.env.OPENAI_API_KEY),
+  enabled: () => Boolean(openaiKey()),
   async start(prompt) {
     const r = await fetch(`${OPENAI_BASE}/responses`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        Authorization: `Bearer ${openaiKey()}`,
       },
       body: JSON.stringify({
         model: OPENAI_MODEL,
@@ -73,7 +75,7 @@ const openai = {
   },
   async check(id) {
     const r = await fetch(`${OPENAI_BASE}/responses/${id}`, {
-      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+      headers: { Authorization: `Bearer ${openaiKey()}` },
     });
     if (!r.ok) throw new Error(`OpenAI get ${r.status}`);
     const j = await r.json();
