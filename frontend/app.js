@@ -671,17 +671,22 @@ function importJson(file) {
   reader.readAsText(file);
 }
 
-function resetAll() {
-  if (!confirm("Стереть все ответы и начать заново?")) return;
+// Начать новую оценку: новый (или переиспользованный пустой) проект + чистая
+// анкета. Прошлый проект НЕ затирается — остаётся в реестре.
+function newProject() {
+  const p = store.startNew();
+  state.projectId = p.id;
   state.answers = {};
   state.scores = {};
   state.step = 0;
   for (const [id, v] of Object.entries(DEFAULTS)) {
     state.answers[id] = { text: String(v), tag: "" };
   }
-  saveState();
+  // НЕ сохраняем сразу: проект остаётся «пустым» в сторе до первого реального ввода,
+  // тогда повторный «Новый проект» переиспользует его (startNew не плодит дубли).
+  localStorage.setItem(STEP_KEY, "0");
   render();
-  toast("Сброшено");
+  toast("Новый проект");
 }
 
 // ── Инициализация ──
@@ -700,7 +705,7 @@ async function init() {
 
   loadState();
   document.getElementById("btn-export").addEventListener("click", exportJson);
-  document.getElementById("btn-reset").addEventListener("click", resetAll);
+  document.getElementById("btn-new").addEventListener("click", newProject);
   const fileInput = document.getElementById("file-import");
   document
     .getElementById("btn-import")
