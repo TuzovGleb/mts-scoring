@@ -282,6 +282,22 @@ textarea:focus, input:focus, select:focus {
 .proj-row__del:hover { border-color: var(--red); color: var(--red); }
 .proj-back { margin-bottom: 14px; }
 
+/* Карточка проекта — блоки */
+.card-block {
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+  margin-top: 18px;
+}
+.card-block__head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+.card-block__title { margin: 0; font-size: 16px; }
+.card-block__sub { font-size: 12.5px; color: var(--muted); }
+.score-val {
+  font-weight: 700;
+  font-size: 15px;
+  min-width: 20px;
+  text-align: center;
+}
+
 /* Intake (быстрый ввод) */
 .intake-paste {
   min-height: 220px;

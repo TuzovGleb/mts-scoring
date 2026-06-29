@@ -55,6 +55,26 @@ function v0Total(p) {
   }
 }
 
+// Имя файла из названия проекта (безопасное).
+function safeName(p) {
+  const name = (p.name || "проект").trim() || "проект";
+  return name.replace(/[^\wА-Яа-яЁё.-]+/g, "_");
+}
+
+// Скачать текст файлом (Blob + временная ссылка).
+function downloadText(filename, text, mime) {
+  const blob = new Blob([text], { type: `${mime};charset=utf-8` });
+  const a = eln("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    URL.revokeObjectURL(a.href);
+    a.remove();
+  }, 0);
+}
+
 // ===== Список =====
 function renderList() {
   host.innerHTML = "";
@@ -166,13 +186,108 @@ function renderCard(p) {
   actions.appendChild(editBtn);
   card.appendChild(actions);
 
-  card.appendChild(
-    eln(
-      "div",
-      "step-intro",
-      "Карточка проекта. Блоки (оценка v0, документы, deep research, синтез, оценка v1, следующие шаги, решение) появятся здесь по мере готовности."
-    )
-  );
+  card.appendChild(renderV0Block(p));
+  card.appendChild(renderDocsBlock(p));
 
   host.appendChild(card);
+}
+
+// Заголовок блока внутри карточки.
+function blockHead(title, sub) {
+  const h = eln("div", "card-block__head");
+  h.appendChild(eln("h3", "card-block__title", title));
+  if (sub) h.appendChild(eln("span", "card-block__sub", sub));
+  return h;
+}
+
+// Блок «Оценка v0» — баллы по факторам (read-only) + итог + флаг overclaim.
+// Правка баллов — в Скоринге; здесь только показываем снимок.
+function renderV0Block(p) {
+  const sec = eln("section", "card-block");
+  sec.appendChild(blockHead("Оценка v0", "из вкладки «Скоринг»"));
+
+  const scores = (p.scores && p.scores.v0) || {};
+  const result = core.computeScore(p.answers || {}, scores);
+  const anyScore = result.perFactor.some((f) => f.score != null);
+
+  if (!anyScore) {
+    sec.appendChild(
+      eln("div", "step-intro", "Баллы ещё не проставлены. Открой проект в Скоринге и оцени факторы.")
+    );
+    return sec;
+  }
+
+  const grid = eln("div", "score-grid");
+  for (const f of result.perFactor) {
+    const row = eln("div", "score-row");
+    const left = eln("div");
+    left.appendChild(eln("div", "score-row__name", `${f.name} · вес ${f.weight}%`));
+    row.appendChild(left);
+    row.appendChild(eln("span", "score-val", f.score != null ? String(f.score) : "—"));
+    row.appendChild(eln("span", `conf conf--${f.confidence}`, `увер. ${f.confidence}`));
+    grid.appendChild(row);
+  }
+  sec.appendChild(grid);
+
+  const totalWrap = eln("div");
+  totalWrap.style.marginTop = "14px";
+  if (result.total != null) {
+    totalWrap.appendChild(eln("div", "step-meta", "Балл v0 (0–100)"));
+    totalWrap.appendChild(eln("div", "score-total", String(result.total)));
+  }
+  sec.appendChild(totalWrap);
+
+  if (result.overclaim) {
+    sec.appendChild(
+      eln(
+        "div",
+        "score-flag",
+        "⚠ Есть фактор с баллом >3 на уверенности L (догадка). По методологии: сначала проверь это допущение, не коммить бюджет."
+      )
+    );
+  }
+  return sec;
+}
+
+// Блок «Документы» — скачать ответы (.json) и метапромт (.md).
+function renderDocsBlock(p) {
+  const sec = eln("section", "card-block");
+  sec.appendChild(blockHead("Документы"));
+
+  const hasAnswers = p.answers && Object.keys(p.answers).length > 0;
+  if (!hasAnswers) {
+    sec.appendChild(
+      eln("div", "step-intro", "Пока нет ответов опросника — заполни проект в Скоринге.")
+    );
+    return sec;
+  }
+
+  const actions = eln("div", "result-actions");
+
+  const jsonBtn = eln("button", "btn btn--ghost btn--sm", "Скачать ответы .json");
+  jsonBtn.type = "button";
+  jsonBtn.addEventListener("click", () => {
+    const payload = {
+      version: "v1",
+      project: p.name,
+      savedAt: new Date().toISOString(),
+      answers: p.answers,
+      scores: (p.scores && p.scores.v0) || {},
+    };
+    downloadText(`${safeName(p)}_опросник.json`, JSON.stringify(payload, null, 2), "application/json");
+  });
+  actions.appendChild(jsonBtn);
+
+  const mdBtn = eln("button", "btn btn--ghost btn--sm", "Скачать метапромт .md");
+  mdBtn.type = "button";
+  // Снимок промта приоритетен (зафиксирован на экране «Результат»); иначе строим заново.
+  const prompt = (p.prompt && p.prompt.trim()) || core.buildPrompt(p.answers || {});
+  mdBtn.addEventListener("click", () => {
+    const content = `# ${core.promptTitle(p.answers || {})}\n\n\`\`\`\n${prompt}\n\`\`\`\n`;
+    downloadText(`${safeName(p)}_deep-research_промт.md`, content, "text/markdown");
+  });
+  actions.appendChild(mdBtn);
+
+  sec.appendChild(actions);
+  return sec;
 }
