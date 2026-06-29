@@ -17,6 +17,14 @@ function uid() {
   return `p_${Date.now().toString(36)}${_seq.toString(36)}${rnd}`;
 }
 
+// Проект «пустой»: нет ни одного ответа с текстом и нет снапшота метапромта.
+export function isBlank(p) {
+  if (!p) return true;
+  const ans = p.answers || {};
+  const hasText = Object.keys(ans).some((k) => String((ans[k] && ans[k].text) || "").trim());
+  return !hasText && !String(p.prompt || "").trim();
+}
+
 export function blankProject(partial = {}) {
   const ts = new Date().toISOString();
   return {
@@ -121,6 +129,13 @@ export function createStore(storage) {
     // Гарантирует активный проект: вернёт текущий, иначе первый, иначе создаст пустой.
     getOrCreateActive() {
       return api.getActive() || (api.list()[0] && api.setActive(api.list()[0].id) && api.getActive()) || api.create();
+    },
+    // Начать новую оценку: если активный проект пустой — переиспользовать его
+    // (не плодить дубли), иначе создать новый и сделать активным.
+    startNew() {
+      const a = api.getActive();
+      if (a && isBlank(a)) return a;
+      return api.create();
     },
     // Одноразовая миграция старого черновика Скоринга в первый проект.
     migrateLegacy() {
