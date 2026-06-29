@@ -192,6 +192,15 @@ textarea:focus, input:focus, select:focus {
 }
 .result-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 4px; }
 .send-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.saved-note {
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: #dcfce7;
+  border-radius: 9px;
+  font-size: 13px;
+  color: var(--ok);
+}
+.saved-note a { color: var(--ok); font-weight: 600; }
 .send-links a {
   text-decoration: none;
   font-size: 13px;

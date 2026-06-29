@@ -325,6 +325,19 @@ function renderResultStep() {
     links.appendChild(el("a", { href: url, target: "_blank", rel: "noopener" }, name));
   }
   promptCard.appendChild(links);
+
+  // Подтверждение: проект сохранён в реестре (метапромт + ответы внутри).
+  if (state.projectId) {
+    const proj = store.get(state.projectId);
+    const saved = el("div", { class: "saved-note" });
+    saved.appendChild(
+      document.createTextNode(`✓ Сохранено в проект «${(proj && proj.name) || "Без названия"}» — `)
+    );
+    saved.appendChild(
+      el("a", { href: `projects.html#p/${encodeURIComponent(state.projectId)}` }, "открыть карточку →")
+    );
+    promptCard.appendChild(saved);
+  }
   frag.appendChild(promptCard);
 
   // 2) Скоринг v0 (опционально)
