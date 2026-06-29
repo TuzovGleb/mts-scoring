@@ -4,7 +4,7 @@ export function renderNavbar(active) {
   const tabs = [
     { id: "about", href: "index.html", label: "Суть" },
     { id: "manifest", href: "manifest.html", label: "Манифест" },
-    { id: "types", href: "types.html", label: "Типы проектов" },
+    { id: "types", href: "types.html", label: "Суть оценки" },
     { id: "scales", href: "scales.html", label: "Шкалы оценок" },
     { id: "scoring", href: "scoring.html", label: "Скоринг" },
   ];

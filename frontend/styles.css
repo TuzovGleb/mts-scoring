@@ -454,6 +454,41 @@ textarea:focus, input:focus, select:focus {
   font-size: 13.5px;
 }
 .crit-note { text-align: center; font-size: 14px; margin-top: 14px; }
+.crit-list .w {
+  float: right;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--red);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1px 8px;
+}
+
+/* Chips (направления) */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.chip {
+  font-size: 13.5px;
+  padding: 7px 14px;
+  border-radius: 20px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  font-weight: 500;
+}
+
+/* Decisions row */
+.decisions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.decision {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 7px 14px;
+  border-radius: 8px;
+  color: #fff;
+}
+.decision--go { background: var(--ok); }
+.decision--val { background: var(--warn); }
+.decision--spin { background: #2563eb; }
+.decision--no { background: var(--red); }
 
 .steps { display: grid; gap: 10px; margin: 14px 0; }
 .step-item {
