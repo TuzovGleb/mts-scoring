@@ -66,7 +66,8 @@ const openai = {
       body: JSON.stringify({
         model: OPENAI_MODEL,
         input: prompt,
-        tools: [{ type: "web_search" }],
+        // deep-research модели требуют web_search_preview; обычные — web_search.
+        tools: [{ type: /deep-research/.test(OPENAI_MODEL) ? "web_search_preview" : "web_search" }],
         background: true, // асинхронно → опрашиваем по id
       }),
     });
