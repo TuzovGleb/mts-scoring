@@ -6,7 +6,14 @@
 import { renderNavbar } from "./nav.js";
 import { loadCore } from "./core-loader.js";
 import { store } from "./store.js";
-import { buildSynthesisPrompt, mdToHtml, parseScores, projectTotals } from "./report.js";
+import {
+  buildSynthesisPrompt,
+  mdToHtml,
+  parseScores,
+  projectTotals,
+  resolvePrompt,
+  answersToRows,
+} from "./report.js";
 
 renderNavbar("projects");
 const host = document.getElementById("app");
@@ -776,9 +783,48 @@ function blockHead(title, sub) {
 
 // Блок «Оценка v0» — баллы по факторам (read-only) + итог + флаг overclaim.
 // Правка баллов — в Скоринге; здесь только показываем снимок.
+// Раскрываемый <details> с ответами опросника (V0), сгруппированными по блокам.
+function renderAnswersDetails(p) {
+  const rows = answersToRows(p.answers || {}, core.BLOCKS);
+  const det = eln("details", "answers-details");
+  const sum = eln("summary");
+  const filledCount = rows.reduce((n, b) => n + b.items.length, 0);
+  sum.textContent = filledCount
+    ? `Ответы опросника (V0) — заполнено: ${filledCount}`
+    : "Ответы опросника (V0) — пусто";
+  det.appendChild(sum);
+
+  if (!filledCount) {
+    det.appendChild(eln("div", "step-intro", "Опросник ещё не заполнен."));
+    return det;
+  }
+  for (const b of rows) {
+    det.appendChild(eln("div", "answers-block__title", b.title));
+    const dl = eln("div", "answers-list");
+    for (const it of b.items) {
+      const row = eln("div", "answers-row");
+      row.appendChild(eln("div", "answers-row__label", it.label + (it.tag ? ` (${it.tag})` : "")));
+      row.appendChild(eln("div", "answers-row__text", it.text));
+      dl.appendChild(row);
+    }
+    det.appendChild(dl);
+  }
+  return det;
+}
+
 function renderV0Block(p) {
   const sec = eln("section", "card-block");
-  sec.appendChild(blockHead("Оценка v0", "из вкладки «Скоринг»"));
+  sec.appendChild(blockHead("Оценка v0", "ответы опросника + баллы"));
+
+  // Кнопка открыть/редактировать опросник этого проекта (он уже активен).
+  const actions = eln("div", "result-actions");
+  const editBtn = eln("a", "btn btn--sm", "Заполнить / редактировать опросник");
+  editBtn.href = "scoring.html";
+  actions.appendChild(editBtn);
+  sec.appendChild(actions);
+
+  // Раскрываемые ответы опросника.
+  sec.appendChild(renderAnswersDetails(p));
 
   const scores = (p.scores && p.scores.v0) || {};
   const result = core.computeScore(p.answers || {}, scores);
@@ -786,7 +832,7 @@ function renderV0Block(p) {
 
   if (!anyScore) {
     sec.appendChild(
-      eln("div", "step-intro", "Баллы ещё не проставлены. Открой проект в Скоринге и оцени факторы.")
+      eln("div", "step-intro", "Баллы ещё не проставлены — открой опросник и оцени факторы.")
     );
     return sec;
   }

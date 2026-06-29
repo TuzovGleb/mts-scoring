@@ -373,6 +373,26 @@ textarea:focus, input:focus, select:focus {
 .research-col__sources { display: flex; flex-direction: column; gap: 3px; margin: 8px 0; }
 .research-col__sources a { font-size: 12px; }
 
+/* Раскрываемые блоки (ответы, метапромт) */
+.answers-details, .prompt-details {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-top: 12px;
+}
+.answers-details > summary, .prompt-details > summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  user-select: none;
+}
+.answers-block__title { font-weight: 600; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
+.answers-list { display: flex; flex-direction: column; gap: 6px; }
+.answers-row { display: grid; grid-template-columns: 230px 1fr; gap: 12px; font-size: 13px; }
+.answers-row__label { color: var(--muted); }
+.answers-row__text { white-space: pre-wrap; word-wrap: break-word; }
+@media (max-width: 640px) { .answers-row { grid-template-columns: 1fr; gap: 2px; } }
+
 /* Рендер markdown-отчёта (синтез, печать) */
 .report-doc { font-size: 14px; line-height: 1.6; margin-top: 14px; }
 .report-doc h1 { font-size: 22px; margin: 18px 0 8px; }
