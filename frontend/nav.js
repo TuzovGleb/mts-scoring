@@ -6,7 +6,8 @@ export function renderNavbar(active) {
     { id: "manifest", href: "manifest.html", label: "Манифест" },
     { id: "types", href: "types.html", label: "Суть оценки" },
     { id: "scales", href: "scales.html", label: "Шкалы оценок" },
-    { id: "scoring", href: "scoring.html", label: "Скоринг" },
+    // «Скоринг» (опросник) убран из меню — открывается из проекта (Новый проект /
+    // Заполнить опросник). Страница scoring.html по-прежнему доступна по ссылке.
     { id: "projects", href: "projects.html", label: "Проекты" },
   ];
   const nav = document.createElement("nav");
