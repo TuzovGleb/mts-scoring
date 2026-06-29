@@ -386,6 +386,14 @@ textarea:focus, input:focus, select:focus {
   font-size: 14px;
   user-select: none;
 }
+.prompt-edit {
+  width: 100%;
+  min-height: 280px;
+  margin-top: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
 .answers-block__title { font-weight: 600; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
 .answers-list { display: flex; flex-direction: column; gap: 6px; }
 .answers-row { display: grid; grid-template-columns: 230px 1fr; gap: 12px; font-size: 13px; }

@@ -239,6 +239,7 @@ function renderCard(p) {
   card.appendChild(actions);
 
   card.appendChild(renderV0Block(p));
+  card.appendChild(renderPromptBlock(p));
   card.appendChild(renderDocsBlock(p));
   card.appendChild(renderResearchBlock(p));
   card.appendChild(renderSynthesisBlock(p));
@@ -413,7 +414,7 @@ async function dispatchResearch(p, models, paint) {
     window.alert("Отметь хотя бы одну модель.");
     return;
   }
-  const prompt = (p.prompt && p.prompt.trim()) || core.buildPrompt(p.answers || {});
+  const prompt = resolvePrompt(store.get(p.id) || p, core.buildPrompt); // актуальный (правленый) метапромт
   try {
     const res = await fetch(`${url.replace(/\/$/, "")}/api/start`, {
       method: "POST",
@@ -663,7 +664,7 @@ function buildCardMd(p) {
   out.push(`\n## Следующие шаги\n${p.nextSteps ? p.nextSteps : "_—_"}`);
   out.push(`\n## Решение\n${p.decision ? p.decision : "_не принято_"}`);
 
-  const prompt = (p.prompt && p.prompt.trim()) || core.buildPrompt(answers);
+  const prompt = resolvePrompt(p, core.buildPrompt);
   out.push(`\n## Метапромт deep-research\n\`\`\`\n${prompt}\n\`\`\``);
 
   return out.join("\n") + "\n";
@@ -897,18 +898,61 @@ function renderDocsBlock(p) {
     downloadText(`${safeName(p)}_опросник.json`, JSON.stringify(payload, null, 2), "application/json");
   });
   actions.appendChild(jsonBtn);
-
-  const mdBtn = eln("button", "btn btn--ghost btn--sm", "Скачать метапромт .md");
-  mdBtn.type = "button";
-  // Снимок промта приоритетен (зафиксирован на экране «Результат»); иначе строим заново.
-  const prompt = (p.prompt && p.prompt.trim()) || core.buildPrompt(p.answers || {});
-  mdBtn.addEventListener("click", () => {
-    const content = `# ${core.promptTitle(p.answers || {})}\n\n\`\`\`\n${prompt}\n\`\`\`\n`;
-    downloadText(`${safeName(p)}_deep-research_промт.md`, content, "text/markdown");
-  });
-  actions.appendChild(mdBtn);
-
   sec.appendChild(actions);
+  return sec;
+}
+
+// Блок «Метапромт для deep research» — раскрываемый, редактируемый. Правки хранятся
+// в project.prompt (promptEdited=true) и НЕ затираются при изменении ответов; диприсёрч
+// берёт именно этот текст (resolvePrompt). «Пересобрать из ответов» сбрасывает правки.
+function renderPromptBlock(p) {
+  const sec = eln("section", "card-block");
+  sec.appendChild(blockHead("Метапромт для deep research", "этот текст уходит в диприсёрч"));
+
+  const hasAnswers = p.answers && Object.keys(p.answers).length > 0;
+  if (!hasAnswers) {
+    sec.appendChild(eln("div", "step-intro", "Сначала заполни опросник."));
+    return sec;
+  }
+
+  const det = eln("details", "prompt-details");
+  const sum = eln("summary");
+  sum.textContent = p.promptEdited && String(p.prompt || "").trim()
+    ? "Метапромт (правлен вручную) — раскрыть/править"
+    : "Метапромт (из ответов) — раскрыть/править";
+  det.appendChild(sum);
+
+  const ta = eln("textarea", "prompt-edit");
+  ta.value = resolvePrompt(p, core.buildPrompt);
+  ta.addEventListener("input", () => {
+    store.update(p.id, { prompt: ta.value, promptEdited: true });
+  });
+  det.appendChild(ta);
+
+  const actions = eln("div", "result-actions");
+  const rebuild = eln("button", "btn btn--ghost btn--sm", "Пересобрать из ответов");
+  rebuild.type = "button";
+  rebuild.addEventListener("click", () => {
+    if (!window.confirm("Заменить метапромт свежим из ответов? Ручные правки будут потеряны.")) return;
+    store.update(p.id, { prompt: core.buildPrompt(p.answers || {}), promptEdited: false });
+    renderCard(store.get(p.id));
+  });
+  const dl = eln("button", "btn btn--ghost btn--sm", "Скачать .md");
+  dl.type = "button";
+  dl.addEventListener("click", () => {
+    const fresh = store.get(p.id) || p;
+    const prompt = resolvePrompt(fresh, core.buildPrompt);
+    downloadText(
+      `${safeName(fresh)}_deep-research_промт.md`,
+      `# ${core.promptTitle(fresh.answers || {})}\n\n\`\`\`\n${prompt}\n\`\`\`\n`,
+      "text/markdown"
+    );
+  });
+  actions.appendChild(rebuild);
+  actions.appendChild(dl);
+  det.appendChild(actions);
+
+  sec.appendChild(det);
   return sec;
 }
 
