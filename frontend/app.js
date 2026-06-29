@@ -1,5 +1,6 @@
 import { loadCore } from "./core-loader.js";
 import { store } from "./store.js";
+import { resolvePrompt } from "./report.js";
 
 // Ядро (схема опросника + генератор метапромта + скоринг) зашифровано:
 // загружается динамически после ввода пароля (см. init в конце файла).
@@ -285,8 +286,11 @@ function renderResultStep() {
     )
   );
 
-  const prompt = buildPrompt(state.answers);
-  if (state.projectId) store.update(state.projectId, { prompt }); // снапшот метапромта в проект
+  // Актуальный метапромт: если в карточке его правили вручную — показываем правленый и
+  // НЕ затираем; иначе генерим из ответов и синхроним снапшот в проект.
+  const liveProj = { ...(state.projectId ? store.get(state.projectId) : null), answers: state.answers };
+  const prompt = resolvePrompt(liveProj, buildPrompt);
+  if (state.projectId && !liveProj.promptEdited) store.update(state.projectId, { prompt });
   const pre = el("pre", { class: "result-prompt" }, prompt);
   promptCard.appendChild(pre);
 
