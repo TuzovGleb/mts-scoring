@@ -470,7 +470,7 @@ async function checkResearch(p, paint, silent = false) {
 // (gpt-5.1). Механизм A: проверка при заходе + автопроверка + ручная кнопка.
 function renderSynthesisBlock(p) {
   const sec = eln("section", "card-block");
-  sec.appendChild(blockHead("Интегрированный синтез", "сводный отчёт (gpt-5.1)"));
+  sec.appendChild(blockHead("Интегрированный синтез"));
   const body = eln("div");
   const paint = () => {
     const fresh = store.get(p.id) || p;

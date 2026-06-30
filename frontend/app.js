@@ -321,10 +321,8 @@ function renderResultStep() {
   const links = el("div", { class: "send-links" });
   links.appendChild(el("span", { class: "field__hint" }, "Открыть (промт скопируй кнопкой выше):"));
   for (const [name, url] of [
-    ["Perplexity", "https://www.perplexity.ai/"],
     ["ChatGPT", "https://chatgpt.com/"],
-    ["Gemini", "https://gemini.google.com/app"],
-    ["Claude", "https://claude.ai/new"],
+    ["Parallel.ai", "https://platform.parallel.ai/"],
   ]) {
     links.appendChild(el("a", { href: url, target: "_blank", rel: "noopener" }, name));
   }
