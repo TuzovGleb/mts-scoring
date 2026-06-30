@@ -519,7 +519,7 @@ function renderSynthesisBody(p, paint) {
   } else if (syn.status === "error") {
     wrap.appendChild(eln("div", "score-flag", syn.error || "Ошибка синтеза"));
   } else if (syn.status === "running") {
-    wrap.appendChild(eln("div", "step-intro", "Синтез готовится (gpt-5.1, high). Можно закрыть вкладку и вернуться."));
+    wrap.appendChild(eln("div", "step-intro", "Синтез готовится. Можно закрыть вкладку и вернуться."));
   } else if (syn.status === "done") {
     const doc = eln("div", "report-doc");
     doc.innerHTML = mdToHtml(syn.text || "");
