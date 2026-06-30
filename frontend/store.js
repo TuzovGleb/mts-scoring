@@ -138,6 +138,36 @@ export function createStore(storage) {
       if (a && isBlank(a)) return a;
       return api.create();
     },
+    // Выгрузка всего реестра (для переноса между origin/устройствами).
+    exportAll() {
+      return { version: 1, projects: readAll(), activeId: api.getActiveId() };
+    },
+    // Загрузка реестра из экспорта. merge (по умолчанию) — дополнить/обновить по id,
+    // не стирая существующие; replace:true — заменить весь реестр. Возвращает число
+    // импортированных проектов.
+    importAll(data, { replace = false } = {}) {
+      const incoming = Array.isArray(data)
+        ? data
+        : data && Array.isArray(data.projects)
+        ? data.projects
+        : [];
+      const norm = incoming
+        .filter((p) => p && p.id)
+        .map((p) => {
+          const b = blankProject(p);
+          if (p.updatedAt) b.updatedAt = p.updatedAt; // сохранить исходную дату
+          return b;
+        });
+      if (!norm.length) return 0;
+      const byId = new Map((replace ? [] : readAll()).map((p) => [p.id, p]));
+      for (const p of norm) byId.set(p.id, p);
+      const arr = [...byId.values()];
+      writeAll(arr);
+      const activeId = data && data.activeId;
+      if (activeId && byId.has(activeId)) api.setActive(activeId);
+      else if (!api.getActiveId() && arr.length) api.setActive(arr[0].id);
+      return norm.length;
+    },
     // Одноразовая миграция старого черновика Скоринга в первый проект.
     migrateLegacy() {
       if (storage.getItem(MIGRATED_KEY)) return null;

@@ -131,6 +131,49 @@ function renderList() {
     location.href = "scoring.html";
   });
   actions.appendChild(newBtn);
+
+  // Экспорт всех проектов файлом (для переноса на другой адрес/устройство/офлайн).
+  const expBtn = eln("button", "btn btn--ghost btn--sm", "Экспорт проектов");
+  expBtn.type = "button";
+  expBtn.addEventListener("click", () => {
+    const dump = store.exportAll();
+    if (!dump.projects.length) {
+      window.alert("Пока нет проектов для экспорта.");
+      return;
+    }
+    const date = new Date().toISOString().slice(0, 10);
+    downloadText(`hackteam-projects_${date}.json`, JSON.stringify(dump, null, 2), "application/json");
+  });
+  actions.appendChild(expBtn);
+
+  // Импорт проектов из файла (merge по id, существующие не стираются).
+  const impBtn = eln("button", "btn btn--ghost btn--sm", "Импорт проектов");
+  impBtn.type = "button";
+  const fileInput = eln("input");
+  fileInput.type = "file";
+  fileInput.accept = "application/json";
+  fileInput.style.display = "none";
+  fileInput.addEventListener("change", () => {
+    const f = fileInput.files && fileInput.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(String(reader.result));
+        const n = store.importAll(data);
+        window.alert(n ? `Импортировано проектов: ${n}` : "В файле нет проектов.");
+        renderList();
+      } catch {
+        window.alert("Не удалось прочитать файл — нужен .json экспорта проектов.");
+      }
+      fileInput.value = "";
+    };
+    reader.readAsText(f);
+  });
+  impBtn.addEventListener("click", () => fileInput.click());
+  actions.appendChild(impBtn);
+  actions.appendChild(fileInput);
+
   card.appendChild(actions);
 
   const list = store.list();

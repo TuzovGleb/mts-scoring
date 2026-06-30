@@ -93,6 +93,41 @@ test("startNew: пустой активный переиспользуется, 
   assert.equal(s.getActiveId(), b.id);
 });
 
+test("exportAll/importAll: перенос реестра (merge по id + активный)", () => {
+  const src = createStore(memoryStorage());
+  const a = src.create({ name: "A", answers: { q1: { text: "ИдеяA" } } });
+  const b = src.create({ name: "B" });
+  src.setActive(b.id);
+  const dump = src.exportAll();
+  assert.equal(dump.projects.length, 2);
+  assert.equal(dump.activeId, b.id);
+
+  // импорт в пустой стор
+  const dst = createStore(memoryStorage());
+  const n = dst.importAll(dump);
+  assert.equal(n, 2);
+  assert.equal(dst.list().length, 2);
+  assert.equal(dst.get(a.id).answers.q1.text, "ИдеяA", "данные перенеслись");
+  assert.equal(dst.getActiveId(), b.id, "активный перенёсся");
+
+  // merge: существующий проект сохраняется, дубль по id обновляется
+  const dst2 = createStore(memoryStorage());
+  const own = dst2.create({ name: "Свой" });
+  dst2.importAll({ projects: [{ ...a, name: "A-обновлён" }] });
+  assert.equal(dst2.list().length, 2, "свой проект на месте + импортированный");
+  assert.equal(dst2.get(a.id).name, "A-обновлён");
+  assert.ok(dst2.get(own.id), "существующий не стёрт");
+});
+
+test("importAll: replace заменяет весь реестр", () => {
+  const s = createStore(memoryStorage());
+  s.create({ name: "Старый" });
+  const r = s.importAll({ projects: [{ id: "p_x", name: "Новый" }] }, { replace: true });
+  assert.equal(r, 1);
+  assert.equal(s.list().length, 1);
+  assert.equal(s.list()[0].name, "Новый");
+});
+
 test("blankProject: дефолты корректны", () => {
   const p = blankProject();
   assert.deepEqual(p.scores, { v0: {}, v1: {} });
