@@ -19,7 +19,7 @@ renderNavbar("projects");
 const host = document.getElementById("app");
 let core = null;
 
-const DECISIONS = ["Делаем", "Валидируем", "Спинофф", "Не делаем"];
+const DECISIONS = ["Делаем", "Валидируем", "Не делаем"];
 
 // Рассылка deep research (режим Netlify, механизм A — проверка из браузера).
 // Render-путь живёт отдельно на экране «Скоринг» и здесь не дублируется.
@@ -83,7 +83,6 @@ function decisionClass(d) {
     {
       Делаем: "go",
       Валидируем: "validate",
-      Спинофф: "spinoff",
       "Не делаем": "stop",
     }[d] || "neutral"
   );
